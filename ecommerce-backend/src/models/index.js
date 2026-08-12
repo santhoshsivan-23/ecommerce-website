@@ -98,6 +98,13 @@ OrderItem.belongsTo(Order, { as: 'order', foreignKey: 'orderId' });
 // orders that contain a given seller's lines, without replacing `items`.
 Order.hasMany(OrderItem, { as: 'sellerLines', foreignKey: 'orderId' });
 
+// The snapshotted owner of a line, so the admin can see which seller supplied
+// each item of a mixed order. Declared without a constraint on purpose: the
+// column is a snapshot that must outlive the seller row, so it stays a plain
+// indexed value rather than gaining a foreign key that would null it.
+User.hasMany(OrderItem, { as: 'soldItems', foreignKey: 'sellerId', constraints: false });
+OrderItem.belongsTo(User, { as: 'seller', foreignKey: 'sellerId', constraints: false });
+
 Product.hasMany(OrderItem, { as: 'orderItems', foreignKey: 'productId', onDelete: 'SET NULL' });
 OrderItem.belongsTo(Product, { as: 'product', foreignKey: 'productId' });
 

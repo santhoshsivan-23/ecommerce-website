@@ -16,6 +16,8 @@ const paymentMethodRoutes = require('./routes/paymentMethodRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const adminOrderRoutes = require('./routes/adminOrderRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const sellerRoutes = require('./routes/sellerRoutes');
 
 const app = express();
@@ -62,7 +64,11 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/orders', orderRoutes);
+// The more specific admin mounts come first so their paths are never swallowed
+// by the general /api/admin router.
 app.use('/api/admin/orders', adminOrderRoutes);
+app.use('/api/admin/reports', reportRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/seller', sellerRoutes);
 
 app.use(notFound);

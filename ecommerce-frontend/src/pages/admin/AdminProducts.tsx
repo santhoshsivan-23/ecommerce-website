@@ -7,6 +7,7 @@ import {
   toggleProductStatus,
 } from '@/features/products/productSlice'
 import { fetchCategories } from '@/features/catalog/categorySlice'
+import { fetchSellers } from '@/features/admin/adminSlice'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/Spinner'
@@ -22,23 +23,27 @@ export default function AdminProducts() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { items, pagination, listStatus } = useAppSelector((state) => state.products)
   const categories = useAppSelector((state) => state.catalog.categories)
+  const sellers = useAppSelector((state) => state.admin.sellers)
 
   const [search, setSearch] = useState(searchParams.get('q') || '')
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null)
 
   const query = searchParams.get('q') || ''
   const category = searchParams.get('category') || ''
+  const sellerId = searchParams.get('sellerId') || ''
   const page = Number(searchParams.get('page')) || 1
 
   useEffect(() => {
     if (categories.length === 0) dispatch(fetchCategories({ includeInactive: true }))
-  }, [dispatch, categories.length])
+    if (sellers.length === 0) dispatch(fetchSellers({ limit: 100 }))
+  }, [dispatch, categories.length, sellers.length])
 
   const reload = () => {
     dispatch(
       fetchProducts({
         q: query || undefined,
         category: category || undefined,
+        sellerId: sellerId || undefined,
         includeInactive: true,
         page,
         limit: PAGE_SIZE,
@@ -47,7 +52,7 @@ export default function AdminProducts() {
     )
   }
 
-  useEffect(reload, [dispatch, query, category, page])
+  useEffect(reload, [dispatch, query, category, sellerId, page])
 
   const updateParams = (changes: Record<string, string | number | undefined>, keepPage = false) => {
     const next = new URLSearchParams(searchParams)
@@ -117,6 +122,7 @@ export default function AdminProducts() {
           className="input-field w-auto"
           value={category}
           onChange={(event) => updateParams({ category: event.target.value })}
+          aria-label="Filter by category"
         >
           <option value="">All categories</option>
           {categories.map((parent) => (
@@ -128,6 +134,20 @@ export default function AdminProducts() {
                 </option>
               ))}
             </optgroup>
+          ))}
+        </select>
+
+        <select
+          className="input-field w-auto"
+          value={sellerId}
+          onChange={(event) => updateParams({ sellerId: event.target.value })}
+          aria-label="Filter by seller"
+        >
+          <option value="">All sellers</option>
+          {sellers.map((seller) => (
+            <option key={seller.id} value={seller.id}>
+              {seller.name}
+            </option>
           ))}
         </select>
       </div>
@@ -146,10 +166,11 @@ export default function AdminProducts() {
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Seller</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Stock</th>
@@ -187,6 +208,19 @@ export default function AdminProducts() {
                           </span>
                         </div>
                       </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      {product.seller ? (
+                        <Link
+                          to={`/admin/sellers/${product.seller.id}`}
+                          className="text-slate-600 hover:text-brand-600"
+                        >
+                          {product.seller.name}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-slate-400">House catalogue</span>
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-slate-600">{product.category?.name ?? '—'}</td>

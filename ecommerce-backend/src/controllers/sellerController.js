@@ -26,36 +26,9 @@ const {
   assignOrderNumber,
   recordStatus,
 } = require('../services/orderService');
-
-const LOW_STOCK_THRESHOLD = 5;
-
-/** Start of the window for a named date range. */
-function rangeStart(range) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (range === 'today') return start;
-  if (range === 'week') {
-    // Week starts on Monday.
-    const day = (start.getDay() + 6) % 7;
-    start.setDate(start.getDate() - day);
-    return start;
-  }
-  if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-  return null;
-}
-
-function resolveDateWindow({ range, from, to }) {
-  if (from || to) {
-    const window = {};
-    if (from) window[Op.gte] = new Date(`${from}T00:00:00`);
-    if (to) window[Op.lte] = new Date(`${to}T23:59:59`);
-    return window;
-  }
-
-  const start = rangeStart(range);
-  return start ? { [Op.gte]: start } : null;
-}
+// Date windows and the low-stock line are shared with the admin panel, so the
+// two dashboards can never disagree about what "this month" or "low" means.
+const { LOW_STOCK_THRESHOLD, resolveDateWindow } = require('../utils/reporting');
 
 /* -------------------------------- Dashboard -------------------------------- */
 

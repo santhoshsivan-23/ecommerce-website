@@ -8,6 +8,8 @@ import addressReducer from '@/features/address/addressSlice'
 import orderReducer from '@/features/orders/orderSlice'
 import paymentReducer from '@/features/payments/paymentSlice'
 import sellerReducer from '@/features/seller/sellerSlice'
+import adminReducer from '@/features/admin/adminSlice'
+import reportReducer from '@/features/reports/reportSlice'
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +22,8 @@ export const store = configureStore({
     orders: orderReducer,
     payments: paymentReducer,
     seller: sellerReducer,
+    admin: adminReducer,
+    reports: reportReducer,
   },
 })
 

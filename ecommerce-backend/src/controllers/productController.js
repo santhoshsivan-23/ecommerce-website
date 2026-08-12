@@ -6,6 +6,7 @@ const {
   ProductVariant,
   Category,
   Brand,
+  User,
 } = require('../models');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
@@ -27,6 +28,8 @@ const SORT_OPTIONS = {
 const PRODUCT_INCLUDES = [
   { model: Category, as: 'category', attributes: ['id', 'name', 'slug', 'parentId'] },
   { model: Brand, as: 'brand', attributes: ['id', 'name', 'slug'] },
+  // "Sold by" on the storefront, and the owning seller in the admin console.
+  { model: User, as: 'seller', attributes: ['id', 'name'] },
   {
     model: ProductImage,
     as: 'images',
@@ -40,6 +43,19 @@ const PRODUCT_INCLUDES = [
     order: [['id', 'ASC']],
   },
 ];
+
+/**
+ * Resolves the owner an admin asked to assign. Anything that is not an actual
+ * seller account is rejected rather than silently stored.
+ */
+async function resolveSellerId(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+
+  const seller = await User.findOne({ where: { id: Number(value), role: 'seller' } });
+  if (!seller) throw ApiError.badRequest('Selected seller does not exist');
+  return seller.id;
+}
 
 /** Splits `?brand=1,2` or repeated params into a clean array. */
 function toArray(value) {
@@ -68,16 +84,23 @@ exports.listProducts = asyncHandler(async (req, res) => {
 
   const isAdmin = req.user && req.user.role === 'admin';
   const isSeller = req.user && req.user.role === 'seller';
+
+  // `?mine=true` scopes the catalogue to the signed-in seller's own products.
+  const ownProductsOnly = isSeller && req.query.mine === 'true';
+
   // Disabled products are only visible in a management view, never the storefront.
-  const includeInactive = (isAdmin || isSeller) && req.query.includeInactive === 'true';
+  // A seller may see their own; another seller's unpublished catalogue is private,
+  // so asking for it just returns the public (active) listing.
+  const includeInactive =
+    req.query.includeInactive === 'true' &&
+    (isAdmin || (isSeller && (ownProductsOnly || Number(req.query.sellerId) === req.user.id)));
 
   const where = {};
   const andConditions = [];
 
   if (!includeInactive) where.isActive = true;
 
-  // `?mine=true` scopes the catalogue to the signed-in seller's own products.
-  if (isSeller && req.query.mine === 'true') where.sellerId = req.user.id;
+  if (ownProductsOnly) where.sellerId = req.user.id;
   else if (req.query.sellerId) where.sellerId = Number(req.query.sellerId);
 
   if (q && String(q).trim()) {
@@ -354,6 +377,10 @@ exports.createProduct = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Discount price must be lower than the original price');
   }
 
+  // Sellers always own what they create; an admin may assign an owner.
+  const assignedSellerId =
+    req.user.role === 'seller' ? req.user.id : (await resolveSellerId(req.body.sellerId)) ?? null;
+
   const product = await sequelize.transaction(async (transaction) => {
     const created = await Product.create(
       {
@@ -364,9 +391,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
         stock: Number(stock) || 0,
         categoryId,
         brandId: brandId || null,
-        // Sellers always own what they create; an admin may assign an owner.
-        sellerId:
-          req.user.role === 'seller' ? req.user.id : req.body.sellerId ? Number(req.body.sellerId) : null,
+        sellerId: assignedSellerId,
         isActive: isActive === undefined ? true : Boolean(isActive),
         isFeatured: Boolean(isFeatured),
         specifications: specifications || [],
@@ -431,6 +456,11 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Discount price must be lower than the original price');
   }
 
+  // Only the admin may move a listing to a different seller; a seller sending
+  // sellerId is ignored rather than allowed to hand their product to someone else.
+  const nextSellerId =
+    req.user.role === 'admin' ? await resolveSellerId(req.body.sellerId) : undefined;
+
   await sequelize.transaction(async (transaction) => {
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
@@ -439,6 +469,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     if (stock !== undefined) product.stock = Number(stock) || 0;
     if (categoryId !== undefined) product.categoryId = categoryId;
     if (brandId !== undefined) product.brandId = brandId || null;
+    if (nextSellerId !== undefined) product.sellerId = nextSellerId;
     if (isActive !== undefined) product.isActive = Boolean(isActive);
     if (isFeatured !== undefined) product.isFeatured = Boolean(isFeatured);
     if (specifications !== undefined) product.specifications = specifications || [];

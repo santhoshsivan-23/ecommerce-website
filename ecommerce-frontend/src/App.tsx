@@ -38,6 +38,14 @@ import AdminOrders from '@/pages/admin/AdminOrders'
 import AdminOrderDetails from '@/pages/admin/AdminOrderDetails'
 import AdminPaymentMethods from '@/pages/admin/AdminPaymentMethods'
 import AdminCoupons from '@/pages/admin/AdminCoupons'
+import AdminCustomers from '@/pages/admin/AdminCustomers'
+import AdminCustomerDetails from '@/pages/admin/AdminCustomerDetails'
+import AdminSellers from '@/pages/admin/AdminSellers'
+import AdminSellerDetails from '@/pages/admin/AdminSellerDetails'
+import AdminInventory from '@/pages/admin/AdminInventory'
+import AdminAttributes from '@/pages/admin/AdminAttributes'
+import AdminReports from '@/pages/admin/AdminReports'
+import AdminAnalytics from '@/pages/admin/AdminAnalytics'
 
 import SellerLayout from '@/pages/seller/SellerLayout'
 import SellerDashboard from '@/pages/seller/SellerDashboard'
@@ -130,11 +138,19 @@ export default function App() {
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="customers/:id" element={<AdminCustomerDetails />} />
+              <Route path="sellers" element={<AdminSellers />} />
+              <Route path="sellers/:id" element={<AdminSellerDetails />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="products/new" element={<AdminProductForm />} />
               <Route path="products/:id/edit" element={<AdminProductForm />} />
+              <Route path="inventory" element={<AdminInventory />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="brands" element={<AdminBrands />} />
+              <Route path="attributes" element={<AdminAttributes />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="orders/:id" element={<AdminOrderDetails />} />
               <Route path="payment-methods" element={<AdminPaymentMethods />} />

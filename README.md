@@ -1,6 +1,7 @@
-# ShopKart — E-Commerce (Phase 1 + Phase 2 + Phase 3)
+# ShopKart — E-Commerce (Phase 1 + Phase 2 + Phase 3 + Phase 4)
 
-Customer shopping, product management, checkout, orders and a seller panel, built as two apps:
+Customer shopping, product management, checkout, orders, a seller panel and an admin
+console with reports and analytics, built as two apps:
 
 - **`ecommerce-backend`** — Express 5 REST API on MySQL/MariaDB via Sequelize
 - **`ecommerce-frontend`** — React 19 + TypeScript (`.tsx`), Redux Toolkit, React Router, Tailwind CSS, react-toastify
@@ -80,6 +81,14 @@ Seller login → Dashboard → Manage products → Manage inventory
    → Order created → Stock updated → Sales updated
 ```
 
+Admin:
+
+```
+Admin login → Dashboard → Customers / Sellers → Products / Inventory
+   → Orders (customer and seller sourced) → Payment methods
+   → Reports (sales, products, sellers, payments, order source) → Analytics
+```
+
 ## What Phase 1 covers
 
 **Authentication & roles** — Registration, login, logout, profile editing and password change. JWT is issued as both an httpOnly cookie and a bearer token. Three roles: `customer`, `seller`, `admin`. Route guards run on both sides: `restrictTo()` middleware on the API, `<ProtectedRoute roles={[...]}>` in the client. Customers cannot reach admin screens, and staff accounts cannot use the cart or wishlist.
@@ -145,6 +154,38 @@ The server recomputes this from the database when the order is placed and ignore
 **Order source** — Orders record `orderSource` (`customer` or `seller`) plus `createdById`, so storefront checkouts and seller-raised orders stay distinguishable everywhere, and the seller's order list can filter on it.
 
 **Shared rules** — Seller orders reuse the exact Phase 2 machinery: the same calculation, the same `SELECT … FOR UPDATE` stock locking, the same payment-status behaviour (cash pending, Google Pay and PhonePe paid). `services/orderService.js` holds that logic once and both checkout paths call into it.
+
+## What Phase 4 covers
+
+**Two money figures, kept apart** — The whole console distinguishes **sales** (every order placed except cancellations, i.e. business written) from **revenue** (the orders whose payment has actually settled). A cash order counts toward sales the moment it is placed and toward revenue only once it is delivered and marked paid. `utils/reporting.js` defines that once, and every dashboard, report and chart reads it from there, so no two screens can disagree.
+
+**Dashboard** — Customers, sellers, products, orders, pending/completed/cancelled counts, total sales, revenue, units sold, average order value and inventory value, plus low-stock alerts, the newest orders, the best sellers, the customer/seller order split and payment-method usage. Every figure honours the date window chosen at the top: today, this week, this month, this year, all time, or a custom `from`/`to` range.
+
+**Customer management** — Search by name, email or phone, filter by active/inactive, and sort by newest, name, order count or lifetime spend. Each customer's page shows their address book, order counts by status, their full order list and what they actually buy — top products by quantity and spend. Deactivating a customer blocks sign-in immediately: `protect` rejects the token on the next request, not just at the login screen.
+
+**Seller management** — The same list, plus each seller's products, orders, units sold, sales, revenue and pending/completed/cancelled counts, all credited from that seller's own order lines so a shared order is never counted twice. Admins create sellers (sellers cannot self-register), edit their details, reset their password and deactivate them. A seller's page carries their catalogue, their best sellers, their categories and their orders.
+
+**Product management** — The admin catalogue spans every seller: search, filter by category or seller, add, edit, delete, enable/disable, manage variants and pricing, and see stock at a glance. Each row names the owning seller, and the product form has a **Sold by** field so an admin can assign or move a listing. Sellers never see that field, and a `sellerId` sent by a seller is ignored rather than honoured.
+
+**Order management** — Every order regardless of origin, filtered by order number or customer (search), order status, payment status, payment method, **order source**, **seller** and date range. The seller and customer pages link straight into it with the filter pre-applied. An order's page names its source, the seller who raised it when it was a direct order, and which seller supplied each line.
+
+**Inventory overview** — Stock across every seller in one table: product, seller, category, current stock, low/out flags and when it last moved. Filter by seller, category or stock level, adjust stock relatively or absolutely (per product or per variant), and open the full `stock_movements` ledger for any product. The adjustment writes the same ledger row the seller panel does and records the admin who made it.
+
+**Reports** — Five tabs over the same date window:
+
+| Report       | Shows                                                                        |
+| ------------ | ---------------------------------------------------------------------------- |
+| Sales        | Orders, units, sales, revenue and discount by day, week, month or year        |
+| Products     | Best sellers *and* the slow movers, with units, revenue, stock and seller     |
+| Sellers      | Orders, products sold, sales, revenue, pending and completed, side by side    |
+| Payments     | Orders and money per method, split by payment status                          |
+| Order source | Customer against seller orders, with each seller's share of the direct ones   |
+
+The product report is built from the product side, so items that sold nothing in the window still appear — which is the entire point of a low-sellers list. Sales series fill their gaps, so a quiet Tuesday shows as a dip rather than joining Monday straight to Wednesday.
+
+**Analytics** — Sales and order trends, customer and seller growth as running totals, order-status distribution, payment-method usage, order-source split and product performance. Charts are hand-drawn SVG with no charting dependency, each backed by the same numbers in a table that can be toggled open, so nothing is only readable as a picture.
+
+**Permissions** — `restrictTo('admin')` guards `/api/admin/*` in one place at the top of each router, so no handler can be reached by a seller. Sellers keep their own scoped `/api/seller/*` panel and cannot read another seller's products, orders or figures. The client mirrors this with `<ProtectedRoute roles={['admin']}>`, but the API is the control.
 
 ### Data relationships
 
@@ -252,7 +293,7 @@ All responses share the shape `{ success, message?, data, errors? }`.
 | `PATCH`  | `/api/admin/orders/:id/status`          | admin        | Advance or cancel an order                     |
 | `PATCH`  | `/api/admin/orders/:id/payment-status`  | admin        | Override the payment status                    |
 
-`GET /api/admin/orders` query parameters: `q`, `status`, `paymentStatus`, `paymentMethod`, `from`, `to`, `sort`, `page`, `limit`.
+`GET /api/admin/orders` query parameters: `q`, `status`, `paymentStatus`, `paymentMethod`, `source`, `sellerId`, `customerId`, `from`, `to`, `sort`, `page`, `limit`.
 
 Order statuses: `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`.
 Payment statuses: `pending`, `paid`, `failed`, `refunded`.
@@ -282,6 +323,49 @@ Every route is seller-only and scoped to the signed-in seller.
 Sellers also use the shared product routes, where `GET /api/products?mine=true` scopes the
 catalogue to their own listings and every write is checked against ownership.
 
+### Admin console — `/api/admin`
+
+Every route is admin-only.
+
+| Method  | Path                                 | Purpose                                                        |
+| ------- | ------------------------------------ | -------------------------------------------------------------- |
+| `GET`   | `/stats`                             | Dashboard: people, catalogue, orders, sales and revenue         |
+| `GET`   | `/customers`                         | Customers with order count, spend and last order                |
+| `GET`   | `/customers/:id`                     | One customer with addresses and purchase history                |
+| `GET`   | `/customers/:id/orders`              | That customer's orders                                          |
+| `PATCH` | `/customers/:id/status`              | Activate or deactivate (omit the body to toggle)                |
+| `GET`   | `/sellers`                           | Sellers with their trading figures                              |
+| `POST`  | `/sellers`                           | Create a seller account                                         |
+| `PATCH` | `/sellers/:id`                       | Edit name, email, phone or password                             |
+| `PATCH` | `/sellers/:id/status`                | Activate or deactivate                                          |
+| `GET`   | `/sellers/:id`                       | One seller: performance, best sellers, categories, recent orders |
+| `GET`   | `/sellers/:id/products`              | That seller's catalogue                                         |
+| `GET`   | `/sellers/:id/orders`                | That seller's orders, with their own share of each              |
+| `GET`   | `/inventory`                         | Stock across every seller, with a summary                       |
+| `GET`   | `/inventory/:productId/history`      | Stock ledger for one product                                    |
+| `PATCH` | `/inventory/:productId`              | Adjust stock relatively or set an exact value                   |
+| `GET`   | `/attributes`                        | Sizes and colours in use across the catalogue                   |
+
+`GET /admin/customers` accepts `q`, `status` (`active`, `inactive`), `sort` (`newest`, `name`, `orders_desc`, `spend_desc`), `page`, `limit`.
+`GET /admin/sellers` accepts `q`, `status`, `sort` (`sales`, `revenue`, `orders`, `products`, `newest`, `name`), the date window, `page`, `limit`.
+`GET /admin/inventory` accepts `q`, `sellerId` (or `none` for house listings), `categoryId`, `stockLevel` (`in`, `low`, `out`), `page`, `limit`.
+
+### Reports — `/api/admin/reports`
+
+Admin-only. Every route accepts the same date window: `range` (`all`, `today`, `week`, `month`, `year`) or `from`/`to`, where an explicit `from`/`to` always wins.
+
+| Method | Path            | Purpose                                                          |
+| ------ | --------------- | ---------------------------------------------------------------- |
+| `GET`  | `/sales`        | Orders, units, sales, revenue and discount per period             |
+| `GET`  | `/products`     | Best-selling and low-selling products with revenue and stock      |
+| `GET`  | `/sellers`      | Seller-by-seller orders, units, sales and revenue                 |
+| `GET`  | `/payments`     | Orders and money per payment method, split by payment status      |
+| `GET`  | `/order-source` | Customer against seller orders, plus who raised the direct ones   |
+| `GET`  | `/analytics`    | Everything above as trends and distributions, for the charts      |
+
+`/sales` and `/analytics` also accept `groupBy` (`day`, `week`, `month`, `year`).
+`/sales`, `/products` and `/analytics` accept `sellerId` to narrow to one seller; `/products` also accepts `categoryId`, `q` and `limit`.
+
 ---
 
 ## Project layout
@@ -302,19 +386,27 @@ ecommerce-backend/
                             place order maths lives, shared by customer checkout
                             and seller-created orders
       cartService.js        loads a cart and hands it to orderService
-    controllers/            one per resource, plus sellerController
+    controllers/            one per resource, plus sellerController,
+                            adminController and reportController
     routes/                 express routers with express-validator rules
     middleware/             auth (protect/optionalAuth/restrictTo), error, validate
-    utils/                  ApiError, asyncHandler, token, pricing, slug
-    seed/seed.js            demo catalogue, accounts, payment methods, coupons
+    utils/                  ApiError, asyncHandler, token, pricing, slug,
+                            reporting.js (date windows, period buckets, the
+                            low-stock line and the sales/revenue definition —
+                            shared by the seller and admin panels)
+    seed/seed.js            demo catalogue, accounts, payment methods, coupons,
+                            and a year of order history across both sellers
 
 ecommerce-frontend/
   src/
     app/                    store.ts, typed hooks
     api/client.ts           axios instance, token storage, error normaliser
     features/               auth, catalog, products, cart, wishlist, address,
-                            orders, payments, seller slices
-    components/             layout, routing guards, product, order, ui
+                            orders, payments, seller, admin, reports slices
+    components/             layout, routing guards, product, order, ui,
+                            admin/RangeFilter, charts/ (dependency-free SVG
+                            trend, column, rank and share charts, each with a
+                            data table behind it)
     pages/                  storefront pages + pages/admin/* + pages/seller/*
     types/                  shared API types
     utils/                  price/stock formatting, order labels, toast helpers
@@ -328,7 +420,8 @@ ecommerce-frontend/
 - **Slugs**: generated from the name and de-duplicated with a numeric suffix, so URLs stay readable (`vertex-ultrabook-14`, `vertex-ultrabook-14-2`).
 - **History integrity**: orders never join back to live catalogue rows for display. Deleting a product nulls the reference but leaves the order line intact. Order lines also snapshot `sellerId`, so a seller's order history survives a product being reassigned or removed.
 - **Ownership**: seller scoping is enforced in the API, never only in the UI. `assertCanManage()` guards product writes and the `/api/seller/*` routes filter by the signed-in seller, so hiding a button is a convenience, not the control.
+- **Reporting**: `utils/reporting.js` owns what a date range means, what counts as low stock, and the sales/revenue split. The seller dashboard and the admin console both import it, so "this month" and "low" can never drift apart between the two panels.
 
 ## Not implemented
 
-No real payment gateway — selecting Google Pay or PhonePe records the method and marks the order paid without contacting a provider. There are also no product reviews, returns/refund workflow, invoices or shipment tracking numbers. Sellers cannot self-register: seller accounts are created by the seed or by an admin.
+No real payment gateway — selecting Google Pay or PhonePe records the method and marks the order paid without contacting a provider. No notifications of any kind: no email, SMS or push. There are also no product reviews, returns/refund workflow, invoices or shipment tracking numbers. Sellers cannot self-register: seller accounts are created by the seed or by an admin.

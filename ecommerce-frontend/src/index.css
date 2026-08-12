@@ -80,3 +80,28 @@
     @apply mt-1 text-xs text-rose-600;
   }
 }
+
+/*
+ * Chart tokens. Charts are written against these roles rather than raw hex, so
+ * the palette lives in one place. The two series hues are slots 1 and 2 of a
+ * palette validated for colour-vision deficiency against the white card surface
+ * these charts render on (worst adjacent pair: ΔE 24.7 protan, 33.6 normal).
+ *
+ * The app ships a single light appearance everywhere, so the charts commit to
+ * the same one instead of flipping with the OS setting while the page stays light.
+ */
+.viz-root {
+  color-scheme: light;
+
+  --viz-surface: #ffffff;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-ink: #0b0b0b;
+  --viz-ink-secondary: #52514e;
+  --viz-ink-muted: #898781;
+
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #eb6834;
+  /* Context marks that must not read as a series. */
+  --viz-neutral: #cbd5e1;
+}

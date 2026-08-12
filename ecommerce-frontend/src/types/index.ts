@@ -77,8 +77,11 @@ export interface Product {
   soldCount: number
   specifications: Specification[]
   createdAt: string
+  sellerId: number | null
   category?: Pick<Category, 'id' | 'name' | 'slug' | 'parentId'>
   brand?: Pick<Brand, 'id' | 'name' | 'slug'> | null
+  /** Who lists the product. Null for catalogue entries the admin owns directly. */
+  seller?: Pick<User, 'id' | 'name'> | null
   images?: ProductImage[]
   variants?: ProductVariant[]
 }
@@ -116,6 +119,8 @@ export interface ProductQuery {
   includeInactive?: boolean
   /** Sellers only: restrict the listing to the signed-in seller's own products. */
   mine?: boolean
+  /** Admin: show only the products belonging to one seller. */
+  sellerId?: number | string
 }
 
 export interface FilterOptions {
@@ -252,6 +257,10 @@ export interface OrderItem {
   orderId: number
   productId: number | null
   variantId: number | null
+  /** Snapshotted owner of the line, so a mixed order can be split by seller. */
+  sellerId: number | null
+  /** Admin order detail only: the seller behind this line. */
+  seller?: Pick<User, 'id' | 'name'> | null
   productName: string
   productSlug: string | null
   brandName: string | null
@@ -324,6 +333,8 @@ export interface Order {
   paymentMethod?: Pick<PaymentMethod, 'id' | 'name' | 'code' | 'icon'> | null
   coupon?: Pick<Coupon, 'id' | 'code' | 'discountType' | 'discountValue'> | null
   customer?: { id: number; name: string; email: string; phone: string | null }
+  /** Admin order detail only: the seller who raised a direct order. */
+  createdBy?: Pick<User, 'id' | 'name'> & { role: Role } | null
 
   canBeCancelledByCustomer: boolean
   /** Admin only: which statuses this order may move to next. */
@@ -348,6 +359,11 @@ export interface AdminOrderQuery {
   status?: OrderStatus | ''
   paymentStatus?: PaymentStatus | ''
   paymentMethod?: string
+  /** Phase 4: storefront checkout vs an order a seller raised directly. */
+  source?: OrderSource | ''
+  /** Phase 4: only orders containing this seller's lines. */
+  sellerId?: number | string
+  customerId?: number | string
   from?: string
   to?: string
   sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc'
@@ -381,7 +397,7 @@ export interface SellerStats {
   lowStockThreshold: number
 }
 
-export type StatsRange = 'all' | 'today' | 'week' | 'month' | 'custom'
+export type StatsRange = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom'
 
 export interface InventoryProduct {
   id: number
@@ -485,8 +501,315 @@ export interface SellerOrderQuery {
 export interface OrderStats {
   byStatus: Partial<Record<OrderStatus, number>>
   byPaymentMethod: Record<string, number>
+  bySource: Partial<Record<OrderSource, number>>
   orderCount: number
   revenue: number
+}
+
+/* ----------------------- Phase 4: admin, reports, analytics ---------------------- */
+
+/**
+ * The whole admin panel keeps two money figures apart and never mixes them:
+ *   sales   — value of every live (non-cancelled) order, i.e. business written
+ *   revenue — value of the orders whose payment has actually been settled
+ */
+export interface AdminDashboard {
+  range: string
+  customers: { total: number; active: number; inactive: number; joinedInRange: number }
+  sellers: { total: number; active: number; inactive: number; joinedInRange: number }
+  admins: { total: number }
+  products: {
+    total: number
+    active: number
+    disabled: number
+    outOfStock: number
+    lowStock: number
+    inventoryValue: number
+  }
+  orders: {
+    total: number
+    pending: number
+    shipped: number
+    completed: number
+    cancelled: number
+    byStatus: Partial<Record<OrderStatus, number>>
+  }
+  sales: { totalSales: number; revenue: number; unitsSold: number; averageOrderValue: number }
+  bySource: Partial<Record<OrderSource, { count: number; value: number }>>
+  byPaymentMethod: Array<{ code: string; name: string; count: number; value: number }>
+  lowStockProducts: Array<{
+    id: number
+    name: string
+    slug: string
+    stock: number
+    isActive: boolean
+    seller?: Pick<User, 'id' | 'name'> | null
+  }>
+  recentOrders: Array<
+    Pick<
+      Order,
+      | 'id'
+      | 'orderNumber'
+      | 'total'
+      | 'status'
+      | 'paymentStatus'
+      | 'orderSource'
+      | 'placedAt'
+      | 'shippingFullName'
+    > & { customer?: Pick<User, 'id' | 'name'> | null }
+  >
+  topProducts: ProductPerformance[]
+  lowStockThreshold: number
+}
+
+export interface AdminCustomer {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  avatar?: string | null
+  isActive: boolean
+  createdAt: string
+  orderCount: number
+  cancelledOrders: number
+  totalSpent: number
+  lastOrderAt: string | null
+  addresses?: Address[]
+}
+
+export interface CustomerDetail {
+  customer: AdminCustomer
+  ordersByStatus: Partial<Record<OrderStatus, number>>
+  purchaseHistory: Array<{
+    productId: number | null
+    productName: string
+    quantity: number
+    spent: number
+    lastBoughtAt: string | null
+  }>
+}
+
+export interface AdminSeller {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  isActive: boolean
+  createdAt: string
+  productCount: number
+  activeProducts: number
+  orderCount: number
+  pendingOrders: number
+  completedOrders: number
+  cancelledOrders: number
+  unitsSold: number
+  sales: number
+  revenue: number
+}
+
+export interface SellerDetail {
+  seller: AdminSeller | undefined
+  range: string
+  topProducts: ProductPerformance[]
+  recentOrders: Array<
+    Pick<Order, 'id' | 'orderNumber' | 'total' | 'status' | 'paymentStatus' | 'orderSource' | 'placedAt'> & {
+      customer?: Pick<User, 'id' | 'name'> | null
+    }
+  >
+  byCategory: Array<{ category: Pick<Category, 'id' | 'name'>; count: number }>
+}
+
+export interface SellerInput {
+  name: string
+  email: string
+  phone?: string | null
+  password?: string
+  isActive?: boolean
+}
+
+/** An order row as the admin's seller detail screen shows it. */
+export interface SellerOrderSummary {
+  id: number
+  orderNumber: string
+  total: number
+  status: OrderStatus
+  paymentStatus: PaymentStatus
+  paymentMethodName: string
+  orderSource: OrderSource
+  placedAt: string
+  shippingFullName: string
+  customer?: Pick<User, 'id' | 'name' | 'email'> | null
+  sellerSubtotal: number
+  sellerItemCount: number
+}
+
+export interface AdminInventoryProduct extends InventoryProduct {
+  soldCount: number
+  lastMovementAt: string | null
+  seller?: Pick<User, 'id' | 'name'> | null
+}
+
+export interface InventoryOverview {
+  products: AdminInventoryProduct[]
+  summary: {
+    products: number
+    outOfStock: number
+    lowStock: number
+    units: number
+    inventoryValue: number
+  }
+  lowStockThreshold: number
+  pagination: Pagination
+}
+
+export interface AttributeUsage {
+  value: string
+  variantCount: number
+  productCount: number
+  stock: number
+}
+
+export interface AttributeOverview {
+  sizes: AttributeUsage[]
+  colors: AttributeUsage[]
+  summary: {
+    products: number
+    withVariants: number
+    withoutVariants: number
+    variants: number
+  }
+}
+
+/* --------------------------------- Reports --------------------------------- */
+
+export type ReportGroupBy = 'day' | 'week' | 'month' | 'year'
+
+/** Every report accepts the same window, so one control bar drives all of them. */
+export interface ReportQuery {
+  range?: StatsRange
+  from?: string
+  to?: string
+  groupBy?: ReportGroupBy
+  sellerId?: number | string
+  categoryId?: number | string
+  source?: OrderSource | ''
+  q?: string
+  limit?: number
+}
+
+export interface SalesRow {
+  period: string
+  orders: number
+  units: number
+  sales: number
+  revenue: number
+  discount: number
+}
+
+export interface SalesReport {
+  groupBy: ReportGroupBy
+  range: string
+  rows: SalesRow[]
+  totals: {
+    orders: number
+    units: number
+    sales: number
+    revenue: number
+    discount: number
+    averageOrderValue: number
+  }
+}
+
+export interface ProductPerformance {
+  id: number
+  name: string
+  slug: string
+  stock: number
+  price: number
+  discountPrice: number | null
+  isActive: boolean
+  unitsSold: number
+  revenue: number
+  orderCount: number
+  seller?: Pick<User, 'id' | 'name'> | null
+  category?: Pick<Category, 'id' | 'name'> | null
+  brand?: Pick<Brand, 'id' | 'name'> | null
+}
+
+export interface ProductReport {
+  range: string
+  bestSelling: ProductPerformance[]
+  lowSelling: ProductPerformance[]
+  totals: { unitsSold: number; revenue: number }
+}
+
+export interface SellerReport {
+  range: string
+  sellers: AdminSeller[]
+  totals: { sellers: number; orders: number; unitsSold: number; sales: number; revenue: number }
+}
+
+export interface PaymentMethodPerformance {
+  code: string
+  name: string
+  orderCount: number
+  sales: number
+  revenue: number
+  paidCount: number
+  pendingCount: number
+  refundedCount: number
+  failedCount: number
+}
+
+export interface PaymentReport {
+  range: string
+  methods: PaymentMethodPerformance[]
+  byStatus: Partial<Record<PaymentStatus, number>>
+  totals: { orders: number; sales: number; revenue: number }
+}
+
+export interface OrderSourceRow {
+  source: OrderSource
+  orderCount: number
+  sales: number
+  revenue: number
+  cancelledCount: number
+  /** Percentage of all orders in the window, to one decimal place. */
+  share: number
+}
+
+export interface OrderSourceReport {
+  range: string
+  sources: OrderSourceRow[]
+  totals: { orders: number; sales: number }
+  byCreator: Array<{ id: number; name: string; orderCount: number; sales: number }>
+}
+
+export interface GrowthRow {
+  period: string
+  joined: number
+  /** Running total, so the line climbs rather than resetting each period. */
+  total: number
+}
+
+export interface Analytics {
+  groupBy: ReportGroupBy
+  range: string
+  salesTrend: SalesRow[]
+  orderTrend: Array<{ period: string; orders: number }>
+  statusDistribution: Array<{ status: OrderStatus; count: number }>
+  paymentUsage: Array<{ code: string; name: string; orderCount: number; sales: number }>
+  orderSources: OrderSourceRow[]
+  customerGrowth: GrowthRow[]
+  sellerGrowth: GrowthRow[]
+  topProducts: Array<{
+    id: number
+    name: string
+    unitsSold: number
+    revenue: number
+    seller?: Pick<User, 'id' | 'name'> | null
+  }>
+  totals: { orders: number; units: number; sales: number; revenue: number; discount: number }
 }
 
 export interface ApiEnvelope<T> {

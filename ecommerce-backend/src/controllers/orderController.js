@@ -300,6 +300,9 @@ exports.adminListOrders = asyncHandler(async (req, res) => {
     status,
     paymentStatus,
     paymentMethod,
+    source,
+    sellerId,
+    customerId,
     from,
     to,
     sort = 'newest',
@@ -314,6 +317,9 @@ exports.adminListOrders = asyncHandler(async (req, res) => {
   if (status) where.status = status;
   if (paymentStatus) where.paymentStatus = paymentStatus;
   if (paymentMethod) where.paymentMethodCode = paymentMethod;
+  // Storefront checkout against an order a seller raised directly.
+  if (source) where.orderSource = source;
+  if (customerId) where.userId = Number(customerId);
 
   if (from || to) {
     where.placedAt = {};
@@ -350,6 +356,19 @@ exports.adminListOrders = asyncHandler(async (req, res) => {
       { ...CUSTOMER_INCLUDE, where: customerWhere, required: false },
       { model: OrderItem, as: 'items', separate: true, order: [['id', 'ASC']] },
       { model: PaymentMethod, as: 'paymentMethod', attributes: ['id', 'name', 'code'] },
+      // Joining on the filter alias narrows the result to orders that contain a
+      // given seller's lines, without replacing the full `items` list.
+      ...(sellerId
+        ? [
+            {
+              model: OrderItem,
+              as: 'sellerLines',
+              attributes: [],
+              where: { sellerId: Number(sellerId) },
+              required: true,
+            },
+          ]
+        : []),
     ],
     order,
     limit: perPage,
@@ -373,7 +392,7 @@ exports.adminListOrders = asyncHandler(async (req, res) => {
 
 // GET /api/admin/orders/stats
 exports.adminOrderStats = asyncHandler(async (req, res) => {
-  const [byStatus, byPayment, totals] = await Promise.all([
+  const [byStatus, byPayment, bySource, totals] = await Promise.all([
     Order.findAll({
       attributes: ['status', [fn('COUNT', col('id')), 'count']],
       group: ['status'],
@@ -382,6 +401,11 @@ exports.adminOrderStats = asyncHandler(async (req, res) => {
     Order.findAll({
       attributes: ['paymentMethodCode', [fn('COUNT', col('id')), 'count']],
       group: ['paymentMethodCode'],
+      raw: true,
+    }),
+    Order.findAll({
+      attributes: ['orderSource', [fn('COUNT', col('id')), 'count']],
+      group: ['orderSource'],
       raw: true,
     }),
     Order.findOne({
@@ -402,6 +426,10 @@ exports.adminOrderStats = asyncHandler(async (req, res) => {
         (acc, row) => ({ ...acc, [row.paymentMethodCode]: Number(row.count) }),
         {}
       ),
+      bySource: bySource.reduce(
+        (acc, row) => ({ ...acc, [row.orderSource]: Number(row.count) }),
+        {}
+      ),
       orderCount: Number(totals.orderCount),
       revenue: Number(totals.revenue),
     },
@@ -411,7 +439,22 @@ exports.adminOrderStats = asyncHandler(async (req, res) => {
 // GET /api/admin/orders/:id
 exports.adminGetOrder = asyncHandler(async (req, res) => {
   const order = await Order.findByPk(req.params.id, {
-    include: [...ORDER_INCLUDES, CUSTOMER_INCLUDE, { model: Address, as: 'address' }],
+    include: [
+      // The admin view replaces the plain `items` include with one that names the
+      // seller behind each line, so a mixed order can be read at a glance.
+      ...ORDER_INCLUDES.filter((include) => include.as !== 'items'),
+      {
+        model: OrderItem,
+        as: 'items',
+        separate: true,
+        order: [['id', 'ASC']],
+        include: [{ model: User, as: 'seller', attributes: ['id', 'name'] }],
+      },
+      CUSTOMER_INCLUDE,
+      { model: Address, as: 'address' },
+      // Populated only for seller-raised orders; null for storefront checkouts.
+      { model: User, as: 'createdBy', attributes: ['id', 'name', 'role'] },
+    ],
   });
   if (!order) throw ApiError.notFound('Order not found');
 

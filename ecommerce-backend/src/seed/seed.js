@@ -15,8 +15,12 @@ const {
   Address,
   PaymentMethod,
   Coupon,
+  Order,
+  OrderItem,
+  OrderStatusHistory,
   StockMovement,
 } = require('../models');
+const { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE, round2 } = require('../utils/pricing');
 
 const img = (seed) => `https://picsum.photos/seed/${seed}/700/700`;
 
@@ -66,6 +70,46 @@ const PRODUCTS = [
   { name: 'Lumen Trail Backpack 35L', sub: 'Outdoor', brand: 'Lumen', price: 3799, discount: 2999, stock: 33, desc: 'A 35-litre hiking pack with a ventilated back panel and rain cover.', specs: [['Capacity', '35L'], ['Weight', '980g'], ['Rain cover', 'Included']] },
 ];
 
+/** Extra shoppers, so the customer list and growth chart have something to say. */
+const EXTRA_CUSTOMERS = [
+  { name: 'Arjun Mehta', email: 'arjun@shop.com', phone: '9000000010', daysAgo: 210 },
+  { name: 'Neha Kapoor', email: 'neha@shop.com', phone: '9000000011', daysAgo: 165 },
+  { name: 'Vikram Rao', email: 'vikram@shop.com', phone: '9000000012', daysAgo: 120 },
+  { name: 'Divya Nair', email: 'divya@shop.com', phone: '9000000013', daysAgo: 88 },
+  { name: 'Imran Sheikh', email: 'imran@shop.com', phone: '9000000014', daysAgo: 54 },
+  { name: 'Kavya Iyer', email: 'kavya@shop.com', phone: '9000000015', daysAgo: 31 },
+  { name: 'Rohit Verma', email: 'rohit@shop.com', phone: '9000000016', daysAgo: 12 },
+  { name: 'Sneha Das', email: 'sneha@shop.com', phone: '9000000017', daysAgo: 4, inactive: true },
+];
+
+/** How the seeded order history is spread across statuses. */
+const STATUS_WEIGHTS = [
+  ['delivered', 52],
+  ['shipped', 10],
+  ['processing', 8],
+  ['confirmed', 8],
+  ['pending', 12],
+  ['cancelled', 10],
+];
+
+const SEEDED_ORDER_COUNT = 220;
+const HISTORY_DAYS = 150;
+
+/**
+ * A tiny seeded PRNG, so re-running the seed produces the same demo history and
+ * screenshots of the reports stay comparable between runs.
+ */
+function makeRandom(seed) {
+  let state = seed;
+  return function random() {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function buildVariants(product) {
   switch (product.variantKind) {
     case 'apparel':
@@ -93,6 +137,211 @@ function buildVariants(product) {
   }
 }
 
+/**
+ * Builds a believable trading history: orders spread across the last few months,
+ * split between storefront checkouts and seller-raised orders, in every status
+ * and against every payment method. Without this the Phase 4 reports and charts
+ * would have nothing to plot on a fresh install.
+ *
+ * Pricing mirrors `utils/pricing`, and every line writes the same stock ledger
+ * rows a real order would, so the inventory history is consistent too.
+ */
+async function seedOrderHistory({ customers, sellers, catalogue }) {
+  const random = makeRandom(20260812);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+
+  const methods = await PaymentMethod.findAll({ where: { isActive: true } });
+  const addressBook = await Address.findAll();
+
+  const statusPool = STATUS_WEIGHTS.flatMap(([status, weight]) => Array(weight).fill(status));
+
+  const stats = { orders: 0, sellerOrders: 0, cancelled: 0 };
+
+  for (let n = 0; n < SEEDED_ORDER_COUNT; n += 1) {
+    // Recent weeks are busier than old ones, which gives the trend chart a slope.
+    const daysAgo = Math.floor(HISTORY_DAYS * random() ** 1.6);
+    const placedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+    placedAt.setHours(9 + Math.floor(random() * 12), Math.floor(random() * 60), 0, 0);
+
+    // Nobody can order before they signed up.
+    const eligible = customers.filter((person) => new Date(person.createdAt) <= placedAt);
+    if (eligible.length === 0) continue;
+    const buyer = pick(eligible);
+
+    const lineCount = 1 + Math.floor(random() * 3);
+    const chosen = [];
+    for (let i = 0; i < lineCount; i += 1) {
+      const entry = pick(catalogue);
+      if (!chosen.some((c) => c.product.id === entry.product.id)) chosen.push(entry);
+    }
+
+    const status = pick(statusPool);
+    const method = pick(methods);
+    const isSellerOrder = random() < 0.18;
+
+    const lines = chosen.map((entry) => {
+      const quantity = 1 + Math.floor(random() * 3);
+      const variant = entry.variants.length ? pick(entry.variants) : null;
+      const originalPrice = Number(entry.product.price);
+      const unitPrice = Number(entry.product.discountPrice || entry.product.price);
+
+      return {
+        entry,
+        variant,
+        quantity,
+        originalPrice,
+        unitPrice,
+        lineTotal: round2(unitPrice * quantity),
+      };
+    });
+
+    const subtotal = round2(lines.reduce((sum, l) => sum + l.originalPrice * l.quantity, 0));
+    const productDiscount = round2(
+      lines.reduce((sum, l) => sum + (l.originalPrice - l.unitPrice) * l.quantity, 0)
+    );
+    const itemsTotal = round2(subtotal - productDiscount);
+    const deliveryCharge = itemsTotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
+
+    // A seller order is credited to whoever owns the first line.
+    const raisingSeller = isSellerOrder
+      ? sellers.find((s) => s.id === lines[0].entry.product.sellerId) || null
+      : null;
+
+    const paymentStatus =
+      status === 'cancelled'
+        ? method.settlesImmediately
+          ? 'refunded'
+          : 'pending'
+        : method.settlesImmediately || status === 'delivered'
+          ? 'paid'
+          : 'pending';
+
+    const address = addressBook.find((a) => a.userId === buyer.id) || addressBook[0];
+
+    const order = await Order.create({
+      userId: buyer.id,
+      subtotal,
+      productDiscount,
+      couponDiscount: 0,
+      discount: productDiscount,
+      deliveryCharge,
+      total: round2(itemsTotal + deliveryCharge),
+      paymentMethodId: method.id,
+      paymentMethodCode: method.code,
+      paymentMethodName: method.name,
+      paymentStatus,
+      status,
+      orderSource: raisingSeller ? 'seller' : 'customer',
+      createdById: raisingSeller ? raisingSeller.id : null,
+      addressId: buyer.id === address.userId ? address.id : null,
+      shippingFullName: buyer.name,
+      shippingPhone: buyer.phone || '9000000000',
+      shippingAddressLine1: address.addressLine1,
+      shippingAddressLine2: address.addressLine2,
+      shippingLandmark: address.landmark,
+      shippingCity: address.city,
+      shippingState: address.state,
+      shippingPostalCode: address.postalCode,
+      shippingCountry: address.country,
+      placedAt,
+      confirmedAt: ['confirmed', 'processing', 'shipped', 'delivered'].includes(status)
+        ? new Date(placedAt.getTime() + 6 * 60 * 60 * 1000)
+        : null,
+      shippedAt: ['shipped', 'delivered'].includes(status)
+        ? new Date(placedAt.getTime() + 36 * 60 * 60 * 1000)
+        : null,
+      deliveredAt:
+        status === 'delivered' ? new Date(placedAt.getTime() + 84 * 60 * 60 * 1000) : null,
+      cancelledAt:
+        status === 'cancelled' ? new Date(placedAt.getTime() + 5 * 60 * 60 * 1000) : null,
+      cancelReason: status === 'cancelled' ? 'Changed my mind' : null,
+      createdAt: placedAt,
+      updatedAt: placedAt,
+    });
+
+    order.orderNumber = `ORD-${placedAt.toISOString().slice(0, 10).replace(/-/g, '')}-${String(
+      order.id
+    ).padStart(5, '0')}`;
+    await order.save();
+
+    await OrderItem.bulkCreate(
+      lines.map((line) => ({
+        orderId: order.id,
+        productId: line.entry.product.id,
+        variantId: line.variant ? line.variant.id : null,
+        sellerId: line.entry.product.sellerId,
+        productName: line.entry.product.name,
+        productSlug: line.entry.product.slug,
+        brandName: line.entry.brandName,
+        variantLabel: line.variant
+          ? [line.variant.color, line.variant.size].filter(Boolean).join(' / ') || null
+          : null,
+        sku: line.variant ? line.variant.sku : null,
+        image: img(`${line.entry.product.slug.slice(0, 30)}-0`),
+        originalPrice: line.originalPrice,
+        unitPrice: line.unitPrice,
+        quantity: line.quantity,
+        lineTotal: line.lineTotal,
+        createdAt: placedAt,
+        updatedAt: placedAt,
+      }))
+    );
+
+    await OrderStatusHistory.create({
+      orderId: order.id,
+      status: 'pending',
+      note: raisingSeller ? `Order created by ${raisingSeller.name}` : 'Order placed',
+      changedById: raisingSeller ? raisingSeller.id : buyer.id,
+      createdAt: placedAt,
+      updatedAt: placedAt,
+    });
+    if (status !== 'pending') {
+      await OrderStatusHistory.create({
+        orderId: order.id,
+        status,
+        note: null,
+        createdAt: new Date(placedAt.getTime() + 12 * 60 * 60 * 1000),
+        updatedAt: new Date(placedAt.getTime() + 12 * 60 * 60 * 1000),
+      });
+    }
+
+    // A cancelled order never consumed stock, so only live orders move the ledger.
+    if (status !== 'cancelled') {
+      for (const line of lines) {
+        const { product } = line.entry;
+        product.stock = Math.max(0, product.stock - line.quantity);
+        product.soldCount += line.quantity;
+        await product.save();
+
+        if (line.variant) {
+          line.variant.stock = Math.max(0, line.variant.stock - line.quantity);
+          await line.variant.save();
+        }
+
+        await StockMovement.create({
+          productId: product.id,
+          variantId: line.variant ? line.variant.id : null,
+          sellerId: product.sellerId,
+          type: 'order',
+          quantityChange: -line.quantity,
+          resultingStock: line.variant ? line.variant.stock : product.stock,
+          reason: `Order ${order.orderNumber}`,
+          orderId: order.id,
+          createdById: raisingSeller ? raisingSeller.id : buyer.id,
+          createdAt: placedAt,
+          updatedAt: placedAt,
+        });
+      }
+    }
+
+    stats.orders += 1;
+    if (raisingSeller) stats.sellerOrders += 1;
+    if (status === 'cancelled') stats.cancelled += 1;
+  }
+
+  return stats;
+}
+
 async function seed() {
   await ensureDatabaseExists();
   await sequelize.authenticate();
@@ -114,6 +363,25 @@ async function seed() {
   const customer = users.find((u) => u.role === 'customer');
   const sellers = users.filter((u) => u.role === 'seller');
 
+  // Backdated sign-ups so the customer growth chart has a shape to draw.
+  const extraCustomers = [];
+  for (const person of EXTRA_CUSTOMERS) {
+    const joinedAt = new Date(Date.now() - person.daysAgo * 24 * 60 * 60 * 1000);
+    extraCustomers.push(
+      await User.create({
+        name: person.name,
+        email: person.email,
+        password: 'Customer@123',
+        phone: person.phone,
+        role: 'customer',
+        isActive: !person.inactive,
+        createdAt: joinedAt,
+        updatedAt: joinedAt,
+      })
+    );
+  }
+  const customers = [customer, ...extraCustomers];
+
   // Brands are split between the two sellers so ownership rules are easy to see:
   // neither seller can touch the other's listings. The split deliberately gives
   // each seller some products with variants and some without.
@@ -127,7 +395,7 @@ async function seed() {
     CasaLuxe: sellers[1].id,
     Lumen: sellers[1].id,
   };
-  console.log(`[seed] created ${users.length} users`);
+  console.log(`[seed] created ${users.length + extraCustomers.length} users`);
 
   const brandsByName = {};
   for (const name of BRANDS) {
@@ -154,6 +422,8 @@ async function seed() {
   console.log(`[seed] created ${categoryCount} categories`);
 
   let variantCount = 0;
+  // Kept in memory so the order history below can pick from them without re-querying.
+  const catalogue = [];
   for (const [index, item] of PRODUCTS.entries()) {
     const category = subcategoriesByName[item.sub];
     const product = await Product.create({
@@ -185,8 +455,9 @@ async function seed() {
     );
 
     const variants = buildVariants(item);
+    let variantRows = [];
     if (variants.length) {
-      await ProductVariant.bulkCreate(
+      variantRows = await ProductVariant.bulkCreate(
         variants.map((v, i) => ({
           productId: product.id,
           sku: `${product.slug.slice(0, 20).toUpperCase()}-${i + 1}`,
@@ -202,6 +473,8 @@ async function seed() {
       product.stock = variants.reduce((sum, v) => sum + v.stock, 0);
       await product.save();
     }
+
+    catalogue.push({ product, variants: variantRows, brandName: item.brand });
 
     // Opening balance, so the seller's stock history starts from a known point.
     await StockMovement.create({
@@ -327,11 +600,18 @@ async function seed() {
   ]);
   console.log('[seed] created 3 coupons');
 
+  const orderStats = await seedOrderHistory({ customers, sellers, catalogue });
+  console.log(
+    `[seed] created ${orderStats.orders} orders over the last ${HISTORY_DAYS} days ` +
+      `(${orderStats.sellerOrders} raised by sellers, ${orderStats.cancelled} cancelled)`
+  );
+
   console.log('\nDemo accounts');
   console.log('  admin     admin@shop.com     Admin@123');
   console.log('  seller    seller@shop.com    Seller@123   (Aurora, NovaTech, Vertex, UrbanEdge)');
   console.log('  seller    seller2@shop.com   Seller@123   (Zenith, PeakForm, CasaLuxe, Lumen)');
   console.log('  customer  customer@shop.com  Customer@123');
+  console.log('  customer  arjun@shop.com     Customer@123   (+7 more demo shoppers)');
   console.log('\nDemo coupons');
   console.log('  WELCOME10  10% off, min order ₹1,000, capped at ₹500');
   console.log('  FLAT200    ₹200 off, min order ₹2,000\n');

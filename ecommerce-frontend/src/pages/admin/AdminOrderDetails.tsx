@@ -88,10 +88,24 @@ export default function AdminOrderDetails() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{order.orderNumber}</h2>
-          <p className="text-sm text-slate-500">Placed on {formatDateTime(order.placedAt)}</p>
+          <p className="text-sm text-slate-500">
+            Placed on {formatDateTime(order.placedAt)}
+            {order.orderSource === 'seller'
+              ? ` · raised directly by ${order.createdBy?.name ?? 'a seller'}`
+              : ' · placed by the customer on the storefront'}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
+              order.orderSource === 'seller'
+                ? 'bg-indigo-50 text-indigo-700'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {order.orderSource} order
+          </span>
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold ${orderStatusClasses(order.status)}`}
           >
@@ -262,6 +276,22 @@ export default function AdminOrderDetails() {
                 <p className="text-sm font-medium text-slate-800">{item.productName}</p>
                 <p className="text-xs text-slate-500">
                   {[item.brandName, item.variantLabel, item.sku].filter(Boolean).join(' · ') || '—'}
+                </p>
+                {/* Which seller supplied the line, so a mixed order is readable. */}
+                <p className="mt-0.5 text-xs text-slate-400">
+                  {item.seller ? (
+                    <>
+                      Sold by{' '}
+                      <Link
+                        to={`/admin/sellers/${item.seller.id}`}
+                        className="font-medium text-brand-600 hover:underline"
+                      >
+                        {item.seller.name}
+                      </Link>
+                    </>
+                  ) : (
+                    'House catalogue'
+                  )}
                 </p>
               </div>
 

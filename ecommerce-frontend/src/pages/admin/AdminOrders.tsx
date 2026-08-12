@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchAdminOrders } from '@/features/orders/orderSlice'
 import { fetchPaymentMethods } from '@/features/payments/paymentSlice'
+import { fetchSellers } from '@/features/admin/adminSlice'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageLoader } from '@/components/ui/Spinner'
@@ -14,7 +15,7 @@ import {
   orderStatusClasses,
   paymentStatusClasses,
 } from '@/utils/orders'
-import type { OrderStatus, PaymentStatus } from '@/types'
+import type { OrderSource, OrderStatus, PaymentStatus } from '@/types'
 
 const ORDER_STATUSES: OrderStatus[] = [
   'pending',
@@ -26,12 +27,18 @@ const ORDER_STATUSES: OrderStatus[] = [
 ]
 const PAYMENT_STATUSES: PaymentStatus[] = ['pending', 'paid', 'failed', 'refunded']
 
+const SOURCES: Array<{ value: OrderSource; label: string }> = [
+  { value: 'customer', label: 'Customer order' },
+  { value: 'seller', label: 'Seller order' },
+]
+
 export default function AdminOrders() {
   const dispatch = useAppDispatch()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { adminOrders, adminPagination, adminStatus } = useAppSelector((state) => state.orders)
   const methods = useAppSelector((state) => state.payments.methods)
+  const sellers = useAppSelector((state) => state.admin.sellers)
 
   const [search, setSearch] = useState(searchParams.get('q') || '')
 
@@ -40,6 +47,10 @@ export default function AdminOrders() {
     status: (searchParams.get('status') || '') as OrderStatus | '',
     paymentStatus: (searchParams.get('paymentStatus') || '') as PaymentStatus | '',
     paymentMethod: searchParams.get('paymentMethod') || '',
+    source: (searchParams.get('source') || '') as OrderSource | '',
+    // Set by the "Open in order manager" links on the seller and customer screens.
+    sellerId: searchParams.get('sellerId') || '',
+    customerId: searchParams.get('customerId') || '',
     from: searchParams.get('from') || '',
     to: searchParams.get('to') || '',
     sort: (searchParams.get('sort') || 'newest') as 'newest' | 'oldest' | 'total_desc' | 'total_asc',
@@ -48,7 +59,8 @@ export default function AdminOrders() {
 
   useEffect(() => {
     if (methods.length === 0) dispatch(fetchPaymentMethods({ includeInactive: true }))
-  }, [dispatch, methods.length])
+    if (sellers.length === 0) dispatch(fetchSellers({ limit: 100 }))
+  }, [dispatch, methods.length, sellers.length])
 
   useEffect(() => {
     dispatch(fetchAdminOrders(query))
@@ -73,7 +85,15 @@ export default function AdminOrders() {
     (query.status ? 1 : 0) +
     (query.paymentStatus ? 1 : 0) +
     (query.paymentMethod ? 1 : 0) +
+    (query.source ? 1 : 0) +
+    (query.sellerId ? 1 : 0) +
+    (query.customerId ? 1 : 0) +
     (query.from || query.to ? 1 : 0)
+
+  // A customer id can arrive from their profile page, where no name is loaded here.
+  const customerName = query.customerId
+    ? (adminOrders[0]?.customer?.name ?? `#${query.customerId}`)
+    : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -87,6 +107,29 @@ export default function AdminOrders() {
           </button>
         ) : null}
       </div>
+
+      {/* Arriving from a customer or seller screen scopes the whole list, which
+          is easy to forget once you start changing the other filters. */}
+      {query.customerId ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-100 bg-brand-50 px-4 py-2 text-sm text-brand-800">
+          <span>
+            Showing orders placed by{' '}
+            <Link
+              to={`/admin/customers/${query.customerId}`}
+              className="font-semibold hover:underline"
+            >
+              {customerName}
+            </Link>
+          </span>
+          <button
+            type="button"
+            className="ml-auto text-xs font-semibold hover:underline"
+            onClick={() => updateParams({ customerId: undefined })}
+          >
+            Show every customer
+          </button>
+        </div>
+      ) : null}
 
       <div className="card flex flex-col gap-3 p-4">
         <form
@@ -105,7 +148,7 @@ export default function AdminOrders() {
           <button type="submit" className="btn-outline shrink-0">Search</button>
         </form>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block">
             <span className="label">Order status</span>
             <select
@@ -155,6 +198,38 @@ export default function AdminOrders() {
           </label>
 
           <label className="block">
+            <span className="label">Order source</span>
+            <select
+              className="input-field"
+              value={query.source}
+              onChange={(event) => updateParams({ source: event.target.value })}
+            >
+              <option value="">All sources</option>
+              {SOURCES.map((source) => (
+                <option key={source.value} value={source.value}>
+                  {source.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="label">Seller</span>
+            <select
+              className="input-field"
+              value={query.sellerId}
+              onChange={(event) => updateParams({ sellerId: event.target.value })}
+            >
+              <option value="">All sellers</option>
+              {sellers.map((seller) => (
+                <option key={seller.id} value={seller.id}>
+                  {seller.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
             <span className="label">From</span>
             <input
               type="date"
@@ -174,6 +249,20 @@ export default function AdminOrders() {
             />
           </label>
         </div>
+
+        {query.sellerId ? (
+          <p className="text-xs text-slate-500">
+            Only orders containing this seller&rsquo;s items are listed. The totals shown are the
+            full order value, not the seller&rsquo;s share —{' '}
+            <Link
+              to={`/admin/sellers/${query.sellerId}`}
+              className="font-semibold text-brand-600 hover:underline"
+            >
+              open the seller
+            </Link>{' '}
+            for their own figures.
+          </p>
+        ) : null}
 
         <label className="ml-auto flex items-center gap-2 text-sm text-slate-600">
           Sort by
@@ -199,11 +288,12 @@ export default function AdminOrders() {
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[940px] text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Order</th>
                 <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Items</th>
                 <th className="px-4 py-3">Payment</th>
                 <th className="px-4 py-3">Total</th>
@@ -225,6 +315,18 @@ export default function AdminOrders() {
                     <p className="text-xs text-slate-400">
                       {order.customer?.email ?? order.shippingPhone}
                     </p>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                        order.orderSource === 'seller'
+                          ? 'bg-indigo-50 text-indigo-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {order.orderSource}
+                    </span>
                   </td>
 
                   <td className="px-4 py-3 text-slate-600">

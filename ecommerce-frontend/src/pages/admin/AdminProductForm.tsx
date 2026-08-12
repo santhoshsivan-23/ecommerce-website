@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { fetchBrands, fetchCategories } from '@/features/catalog/categorySlice'
 import { fetchProduct, saveProduct } from '@/features/products/productSlice'
+import { fetchSellers } from '@/features/admin/adminSlice'
 import { PageLoader, Spinner } from '@/components/ui/Spinner'
 import { PlusIcon, TrashIcon } from '@/components/ui/Icons'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
@@ -36,6 +37,9 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
 
   const { categories, brands } = useAppSelector((state) => state.catalog)
   const current = useAppSelector((state) => state.products.current)
+  const sellers = useAppSelector((state) => state.admin.sellers)
+  // Sellers always own what they create, so only the admin picks an owner.
+  const isAdmin = useAppSelector((state) => state.auth.user?.role) === 'admin'
 
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
@@ -49,6 +53,7 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
     stock: '0',
     categoryId: '',
     brandId: '',
+    sellerId: '',
     isActive: true,
     isFeatured: false,
   })
@@ -59,7 +64,9 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
   useEffect(() => {
     if (categories.length === 0) dispatch(fetchCategories({ includeInactive: true }))
     if (brands.length === 0) dispatch(fetchBrands({ includeInactive: true }))
-  }, [dispatch, categories.length, brands.length])
+    // The seller list is an admin-only endpoint, so a seller must not ask for it.
+    if (isAdmin && sellers.length === 0) dispatch(fetchSellers({ limit: 100 }))
+  }, [dispatch, categories.length, brands.length, isAdmin, sellers.length])
 
   useEffect(() => {
     if (!isEdit || !id) return
@@ -80,6 +87,7 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
       stock: String(current.stock),
       categoryId: String(current.categoryId),
       brandId: current.brandId ? String(current.brandId) : '',
+      sellerId: current.sellerId ? String(current.sellerId) : '',
       isActive: current.isActive,
       isFeatured: current.isFeatured,
     })
@@ -131,6 +139,9 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
           stock: Number(form.stock),
           categoryId: Number(form.categoryId),
           brandId: form.brandId ? Number(form.brandId) : null,
+          // Omitted entirely for a seller: the API would ignore it anyway, and
+          // sending it would look like an attempt to reassign the listing.
+          ...(isAdmin ? { sellerId: form.sellerId ? Number(form.sellerId) : null } : {}),
           isActive: form.isActive,
           isFeatured: form.isFeatured,
           images: images.filter((url) => url.trim()),
@@ -238,6 +249,32 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
               ))}
             </select>
           </div>
+
+          {isAdmin ? (
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="sellerId">Sold by</label>
+              <select
+                id="sellerId"
+                className="input-field"
+                value={form.sellerId}
+                onChange={(event) => setForm({ ...form, sellerId: event.target.value })}
+              >
+                <option value="">House catalogue (no seller)</option>
+                {sellers.map((seller) => (
+                  <option key={seller.id} value={seller.id}>
+                    {seller.name}
+                    {seller.isActive ? '' : ' (deactivated)'}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                The owning seller manages this product&rsquo;s stock and sees its orders. Changing
+                it moves future sales to the new seller; past orders keep the seller they were
+                placed with.
+              </p>
+              {errors.sellerId ? <p className="field-error">{errors.sellerId}</p> : null}
+            </div>
+          ) : null}
 
           <div>
             <label className="label" htmlFor="price">Price (₹) *</label>
