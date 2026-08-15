@@ -16,26 +16,87 @@ function publicUser(user) {
   };
 }
 
-// POST /api/auth/register
+// POST /api/auth/register (Customer Registration)
 exports.register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone, role } = req.body;
+  const { name, email, password, phone } = req.body;
 
   const existing = await User.findOne({ where: { email: String(email).toLowerCase() } });
   if (existing) throw ApiError.conflict('An account with this email already exists');
 
-  // Admin accounts are never self-serve; they come from the seed or another admin.
-  const requestedRole = role === 'seller' ? 'seller' : 'customer';
-
-  const user = await User.create({ name, email, password, phone, role: requestedRole });
+  // Public registration strictly creates Customer accounts.
+  const user = await User.create({ name, email, password, phone, role: 'customer' });
 
   // Every customer gets a cart up front so cart reads never have to create one.
-  if (user.role === 'customer') await Cart.findOrCreate({ where: { userId: user.id } });
+  await Cart.findOrCreate({ where: { userId: user.id } });
 
   const token = sendTokenCookie(res, signToken(user));
   res.status(201).json({ success: true, message: 'Registration successful', data: { user: publicUser(user), token } });
 });
 
-// POST /api/auth/login
+// POST /api/auth/admin/register (Business Owner Registration)
+exports.adminRegister = asyncHandler(async (req, res) => {
+  const { name, email, password, phone } = req.body;
+
+  const existing = await User.findOne({ where: { email: String(email).toLowerCase() } });
+  if (existing) throw ApiError.conflict('An account with this email already exists');
+
+  const user = await User.create({ name, email, password, phone, role: 'admin' });
+
+  const token = sendTokenCookie(res, signToken(user));
+  res.status(201).json({
+    success: true,
+    message: 'Business Owner account registered successfully',
+    data: { user: publicUser(user), token },
+  });
+});
+
+// POST /api/auth/admin/login (Dedicated Admin Authentication Flow)
+exports.adminLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.scope('withPassword').findOne({
+    where: { email: String(email).toLowerCase() },
+  });
+
+  if (!user || !(await user.comparePassword(password))) {
+    throw ApiError.unauthorized('Invalid email or password');
+  }
+
+  if (user.role !== 'admin') {
+    throw ApiError.forbidden('Access denied. This login portal is restricted to Admin accounts.');
+  }
+
+  if (!user.isActive) throw ApiError.forbidden('This admin account has been disabled');
+
+  const token = sendTokenCookie(res, signToken(user));
+  res.json({ success: true, message: `Welcome back, Admin ${user.name}`, data: { user: publicUser(user), token } });
+});
+
+// POST /api/auth/seller/login (Dedicated Seller Authentication Flow)
+exports.sellerLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.scope('withPassword').findOne({
+    where: { email: String(email).toLowerCase() },
+  });
+
+  if (!user || !(await user.comparePassword(password))) {
+    throw ApiError.unauthorized('Invalid email or password');
+  }
+
+  if (user.role !== 'seller') {
+    throw ApiError.forbidden('Access denied. This login portal is restricted to Seller worker accounts.');
+  }
+
+  if (!user.isActive) {
+    throw ApiError.forbidden('This seller account has been deactivated by the business admin.');
+  }
+
+  const token = sendTokenCookie(res, signToken(user));
+  res.json({ success: true, message: `Welcome back, ${user.name}`, data: { user: publicUser(user), token } });
+});
+
+// POST /api/auth/login (Customer / General Login)
 exports.login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 

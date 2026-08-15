@@ -209,6 +209,19 @@ export const fetchSellerCustomers = createAsyncThunk<
   }
 })
 
+export const createSellerCustomer = createAsyncThunk<
+  SellerCustomer,
+  { name: string; email: string; phone?: string },
+  { rejectValue: ApiFailure }
+>('seller/createCustomer', async (body, { rejectWithValue }) => {
+  try {
+    const { data } = await api.post<ApiEnvelope<{ customer: SellerCustomer }>>('/seller/customers', body)
+    return data.data.customer
+  } catch (error) {
+    return rejectWithValue(toApiFailure(error))
+  }
+})
+
 /** Prices a draft order on the server before it is created. */
 export const quoteDraftOrder = createAsyncThunk<
   DraftQuote,
@@ -262,7 +275,7 @@ const sellerSlice = createSlice({
       })
       .addCase(fetchSellerStats.rejected, (state, action) => {
         state.statsStatus = 'failed'
-        state.error = action.payload?.message ?? 'Could not load your dashboard'
+        state.error = action.payload?.message ?? 'Could not load seller stats'
       })
 
       .addCase(fetchInventory.pending, (state) => {
@@ -276,19 +289,12 @@ const sellerSlice = createSlice({
       })
       .addCase(fetchInventory.rejected, (state, action) => {
         state.inventoryStatus = 'failed'
-        state.error = action.payload?.message ?? 'Could not load your inventory'
+        state.error = action.payload?.message ?? 'Could not load inventory'
       })
 
       .addCase(adjustStock.fulfilled, (state, action) => {
-        // Patch the row in place so the table does not have to refetch.
-        const row = state.inventory.find((item) => item.id === action.payload.productId)
-        if (row) {
-          row.stock = action.payload.productStock
-          if (action.payload.variantId && row.variants) {
-            const variant = row.variants.find((v) => v.id === action.payload.variantId)
-            if (variant) variant.stock = action.payload.newStock
-          }
-        }
+        const item = state.inventory.find((p) => p.id === action.payload.productId)
+        if (item) item.stock = action.payload.productStock
       })
 
       .addCase(fetchStockHistory.pending, (state) => {
@@ -296,12 +302,13 @@ const sellerSlice = createSlice({
       })
       .addCase(fetchStockHistory.fulfilled, (state, action) => {
         state.historyStatus = 'succeeded'
-        state.history = action.payload.movements
         state.historyProduct = action.payload.product
+        state.history = action.payload.movements
       })
-      .addCase(fetchStockHistory.rejected, (state, action) => {
+      .addCase(fetchStockHistory.rejected, (state) => {
         state.historyStatus = 'failed'
-        state.error = action.payload?.message ?? 'Could not load stock history'
+        state.historyProduct = null
+        state.history = []
       })
 
       .addCase(fetchSellerOrders.pending, (state) => {
@@ -314,7 +321,7 @@ const sellerSlice = createSlice({
       })
       .addCase(fetchSellerOrders.rejected, (state, action) => {
         state.ordersStatus = 'failed'
-        state.error = action.payload?.message ?? 'Could not load your orders'
+        state.error = action.payload?.message ?? 'Could not load seller orders'
       })
 
       .addCase(fetchSellerOrder.pending, (state) => {
@@ -338,6 +345,10 @@ const sellerSlice = createSlice({
 
       .addCase(fetchSellerCustomers.fulfilled, (state, action) => {
         state.customers = action.payload
+      })
+
+      .addCase(createSellerCustomer.fulfilled, (state, action) => {
+        state.customers.unshift(action.payload)
       })
 
       .addCase(quoteDraftOrder.fulfilled, (state, action) => {

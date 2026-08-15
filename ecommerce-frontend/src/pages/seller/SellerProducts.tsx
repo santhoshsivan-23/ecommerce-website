@@ -24,11 +24,10 @@ export default function SellerProducts() {
   const page = Number(searchParams.get('page')) || 1
 
   const reload = () => {
-    // `mine` is what keeps one seller out of another's catalogue.
+    // Admin & Sellers work on the shared business catalogue.
     dispatch(
       fetchProducts({
         q: query || undefined,
-        mine: true,
         includeInactive: true,
         page,
         limit: PAGE_SIZE,
@@ -75,7 +74,7 @@ export default function SellerProducts() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">
-          My products <span className="text-sm font-normal text-slate-500">({pagination.total})</span>
+          Business Products <span className="text-sm font-normal text-slate-500">({pagination.total})</span>
         </h2>
         <Link to="/seller/products/new" className="btn-primary gap-2">
           <PlusIcon className="h-4 w-4" />
@@ -92,7 +91,7 @@ export default function SellerProducts() {
       >
         <input
           className="input-field"
-          placeholder="Search my products by name"
+          placeholder="Search business products by name"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />

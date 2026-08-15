@@ -468,7 +468,7 @@ export interface DraftQuote {
 }
 
 export interface CreateSellerOrderInput {
-  customerId: number
+  customerId?: number | string | null
   addressId?: number | null
   items: Array<{ productId: number; variantId: number | null; quantity: number }>
   paymentMethodId: number

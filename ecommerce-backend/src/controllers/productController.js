@@ -284,9 +284,9 @@ exports.getProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ where, include: PRODUCT_INCLUDES });
   if (!product) throw ApiError.notFound('Product not found');
 
-  // A disabled product stays reachable for the admin and for the seller who owns it.
+  // A disabled product stays reachable for admin and sellers managing the business.
   const canSeeDisabled =
-    req.user && (req.user.role === 'admin' || product.sellerId === req.user.id);
+    req.user && (req.user.role === 'admin' || req.user.role === 'seller');
   if (!product.isActive && !canSeeDisabled) throw ApiError.notFound('Product not found');
 
   const related = await Product.findAll({
@@ -409,14 +409,12 @@ exports.createProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * Sellers may only touch their own listings; admins may touch anything.
- * Called by every write path so one seller can never edit another's catalogue.
+ * Admin and Sellers work on the shared business catalogue.
+ * Admin is the business owner; Sellers are employees permitted to perform operations.
  */
 function assertCanManage(product, user) {
-  if (user.role === 'admin') return;
-  if (product.sellerId !== user.id) {
-    throw ApiError.forbidden('This product belongs to another seller');
-  }
+  if (user.role === 'admin' || user.role === 'seller') return;
+  throw ApiError.forbidden('You do not have permission to manage products');
 }
 
 // PATCH /api/products/:id (admin, or the owning seller)

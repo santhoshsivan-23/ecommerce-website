@@ -399,7 +399,7 @@ export default function SellerInventory() {
                           {movement.reason || MOVEMENT_LABELS[movement.type]}
                           <span className="block text-xs text-slate-400">
                             {MOVEMENT_LABELS[movement.type]}
-                            {movement.createdBy ? ` · ${movement.createdBy.name}` : ''}
+                            {movement.createdBy ? ` · ${movement.createdBy.name} (${movement.createdBy.role === 'admin' ? 'Admin' : 'Seller'})` : ''}
                           </span>
                         </td>
                       </tr>

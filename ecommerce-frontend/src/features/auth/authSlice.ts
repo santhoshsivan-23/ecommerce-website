@@ -43,6 +43,22 @@ export const register = createAsyncThunk<
   }
 })
 
+export const adminRegister = createAsyncThunk<
+  { user: User; token: string },
+  RegisterInput,
+  { rejectValue: ApiFailure }
+>('auth/adminRegister', async (payload, { rejectWithValue }) => {
+  try {
+    const { data } = await api.post<ApiEnvelope<{ user: User; token: string }>>(
+      '/auth/admin/register',
+      payload
+    )
+    return data.data
+  } catch (error) {
+    return rejectWithValue(toApiFailure(error))
+  }
+})
+
 export const login = createAsyncThunk<
   { user: User; token: string },
   { email: string; password: string },
@@ -50,6 +66,32 @@ export const login = createAsyncThunk<
 >('auth/login', async (payload, { rejectWithValue }) => {
   try {
     const { data } = await api.post<ApiEnvelope<{ user: User; token: string }>>('/auth/login', payload)
+    return data.data
+  } catch (error) {
+    return rejectWithValue(toApiFailure(error))
+  }
+})
+
+export const adminLogin = createAsyncThunk<
+  { user: User; token: string },
+  { email: string; password: string },
+  { rejectValue: ApiFailure }
+>('auth/adminLogin', async (payload, { rejectWithValue }) => {
+  try {
+    const { data } = await api.post<ApiEnvelope<{ user: User; token: string }>>('/auth/admin/login', payload)
+    return data.data
+  } catch (error) {
+    return rejectWithValue(toApiFailure(error))
+  }
+})
+
+export const sellerLogin = createAsyncThunk<
+  { user: User; token: string },
+  { email: string; password: string },
+  { rejectValue: ApiFailure }
+>('auth/sellerLogin', async (payload, { rejectWithValue }) => {
+  try {
+    const { data } = await api.post<ApiEnvelope<{ user: User; token: string }>>('/auth/seller/login', payload)
     return data.data
   } catch (error) {
     return rejectWithValue(toApiFailure(error))
@@ -139,6 +181,16 @@ const authSlice = createSlice({
         state.error = action.payload ?? { message: 'Registration failed' }
       })
 
+      .addCase(adminRegister.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(adminRegister.fulfilled, authSucceeded)
+      .addCase(adminRegister.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? { message: 'Admin registration failed' }
+      })
+
       .addCase(login.pending, (state) => {
         state.status = 'loading'
         state.error = null
@@ -147,6 +199,26 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.payload ?? { message: 'Login failed' }
+      })
+
+      .addCase(adminLogin.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(adminLogin.fulfilled, authSucceeded)
+      .addCase(adminLogin.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? { message: 'Admin login failed' }
+      })
+
+      .addCase(sellerLogin.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(sellerLogin.fulfilled, authSucceeded)
+      .addCase(sellerLogin.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? { message: 'Seller login failed' }
       })
 
       .addCase(loadSession.pending, (state) => {

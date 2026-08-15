@@ -11,7 +11,7 @@ import { setUnauthorizedHandler } from '@/api/client'
 import { notify } from '@/utils/notify'
 
 import { Layout } from '@/components/layout/Layout'
-import { GuestRoute, ProtectedRoute } from '@/components/routing/ProtectedRoute'
+import { AdminGuestRoute, GuestRoute, ProtectedRoute, SellerGuestRoute } from '@/components/routing/ProtectedRoute'
 
 import Home from '@/pages/Home'
 import Login from '@/pages/Login'
@@ -27,6 +27,10 @@ import Addresses from '@/pages/Addresses'
 import Profile from '@/pages/Profile'
 import NotFound from '@/pages/NotFound'
 import Forbidden from '@/pages/Forbidden'
+
+import AdminRegister from '@/pages/admin/AdminRegister'
+import AdminLogin from '@/pages/admin/AdminLogin'
+import SellerLogin from '@/pages/seller/SellerLogin'
 
 import AdminLayout from '@/pages/admin/AdminLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -105,6 +109,15 @@ export default function App() {
             <Route path="/register" element={<Register />} />
           </Route>
 
+          <Route element={<AdminGuestRoute />}>
+            <Route path="/admin/register" element={<AdminRegister />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+          </Route>
+
+          <Route element={<SellerGuestRoute />}>
+            <Route path="/seller/login" element={<SellerLogin />} />
+          </Route>
+
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<Profile />} />
           </Route>
@@ -118,47 +131,48 @@ export default function App() {
             <Route path="/addresses" element={<Addresses />} />
           </Route>
 
-          {/* Sellers have their own panel, so the admin console is admin-only. */}
-          <Route element={<ProtectedRoute roles={['seller']} />}>
-            <Route path="/seller" element={<SellerLayout />}>
-              <Route index element={<SellerDashboard />} />
-              <Route path="orders" element={<SellerOrders />} />
-              <Route path="orders/new" element={<SellerCreateOrder />} />
-              <Route path="orders/:id" element={<SellerOrderDetails />} />
-              <Route path="products" element={<SellerProducts />} />
-              <Route path="products/new" element={<AdminProductForm listPath="/seller/products" />} />
-              <Route
-                path="products/:id/edit"
-                element={<AdminProductForm listPath="/seller/products" />}
-              />
-              <Route path="inventory" element={<SellerInventory />} />
-            </Route>
-          </Route>
-
-          <Route element={<ProtectedRoute roles={['admin']} />}>
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="reports" element={<AdminReports />} />
-              <Route path="customers" element={<AdminCustomers />} />
-              <Route path="customers/:id" element={<AdminCustomerDetails />} />
-              <Route path="sellers" element={<AdminSellers />} />
-              <Route path="sellers/:id" element={<AdminSellerDetails />} />
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="products/new" element={<AdminProductForm />} />
-              <Route path="products/:id/edit" element={<AdminProductForm />} />
-              <Route path="inventory" element={<AdminInventory />} />
-              <Route path="categories" element={<AdminCategories />} />
-              <Route path="brands" element={<AdminBrands />} />
-              <Route path="attributes" element={<AdminAttributes />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="orders/:id" element={<AdminOrderDetails />} />
-              <Route path="payment-methods" element={<AdminPaymentMethods />} />
-              <Route path="coupons" element={<AdminCoupons />} />
-            </Route>
-          </Route>
-
           <Route path="*" element={<NotFound />} />
+        </Route>
+
+        {/* Dedicated Seller Portal (No Customer Header/Footer) */}
+        <Route element={<ProtectedRoute roles={['seller']} />}>
+          <Route path="/seller" element={<SellerLayout />}>
+            <Route index element={<SellerDashboard />} />
+            <Route path="orders" element={<SellerOrders />} />
+            <Route path="orders/new" element={<SellerCreateOrder />} />
+            <Route path="orders/:id" element={<SellerOrderDetails />} />
+            <Route path="products" element={<SellerProducts />} />
+            <Route path="products/new" element={<AdminProductForm listPath="/seller/products" />} />
+            <Route
+              path="products/:id/edit"
+              element={<AdminProductForm listPath="/seller/products" />}
+            />
+            <Route path="inventory" element={<SellerInventory />} />
+          </Route>
+        </Route>
+
+        {/* Dedicated Admin Console (No Customer Header/Footer) */}
+        <Route element={<ProtectedRoute roles={['admin']} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="customers" element={<AdminCustomers />} />
+            <Route path="customers/:id" element={<AdminCustomerDetails />} />
+            <Route path="sellers" element={<AdminSellers />} />
+            <Route path="sellers/:id" element={<AdminSellerDetails />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="products/new" element={<AdminProductForm />} />
+            <Route path="products/:id/edit" element={<AdminProductForm />} />
+            <Route path="inventory" element={<AdminInventory />} />
+            <Route path="categories" element={<AdminCategories />} />
+            <Route path="brands" element={<AdminBrands />} />
+            <Route path="attributes" element={<AdminAttributes />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="orders/:id" element={<AdminOrderDetails />} />
+            <Route path="payment-methods" element={<AdminPaymentMethods />} />
+            <Route path="coupons" element={<AdminCoupons />} />
+          </Route>
         </Route>
       </Routes>
 

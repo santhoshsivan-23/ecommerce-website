@@ -95,24 +95,25 @@ export default function Login() {
         <p className="text-center text-sm text-slate-500">
           New here?{' '}
           <Link to="/register" className="font-semibold text-brand-600 hover:underline">
-            Create an account
+            Create a customer account
           </Link>
         </p>
+
+        <div className="flex justify-center gap-4 text-xs text-slate-400 pt-2 border-t border-slate-100">
+          <Link to="/admin/login" className="hover:text-slate-600 underline">Admin Login</Link>
+          <span>•</span>
+          <Link to="/seller/login" className="hover:text-slate-600 underline">Seller / Worker Login</Link>
+        </div>
       </form>
 
       <div className="card p-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Demo accounts
+          Demo Customer Account
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-slate-600 font-mono">customer@shop.com / Customer@123</span>
           <button type="button" className="btn-outline text-xs" onClick={() => fillDemo('customer@shop.com', 'Customer@123')}>
-            Customer
-          </button>
-          <button type="button" className="btn-outline text-xs" onClick={() => fillDemo('admin@shop.com', 'Admin@123')}>
-            Admin
-          </button>
-          <button type="button" className="btn-outline text-xs" onClick={() => fillDemo('seller@shop.com', 'Seller@123')}>
-            Seller
+            Fill Customer Demo
           </button>
         </div>
       </div>

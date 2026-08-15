@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  FiSearch,
+  FiShoppingCart,
+  FiHeart,
+  FiUser,
+  FiMenu,
+  FiX,
+  FiLogOut,
+  FiPackage,
+  FiMapPin,
+  FiGrid,
+  FiChevronDown,
+} from 'react-icons/fi'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/authSlice'
 import { resetCart } from '@/features/cart/cartSlice'
 import { resetWishlist } from '@/features/wishlist/wishlistSlice'
 import { resetAddresses } from '@/features/address/addressSlice'
 import { notify } from '@/utils/notify'
-import { CartIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon, CloseIcon } from '@/components/ui/Icons'
 
 export function Navbar() {
   const dispatch = useAppDispatch()
@@ -23,7 +35,7 @@ export function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
 
-  // Keep the search box in step with the URL when navigating back and forth.
+  // Keep the search box in sync with the URL
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     setSearch(location.pathname === '/products' ? params.get('q') || '' : '')
@@ -57,49 +69,74 @@ export function Navbar() {
   }
 
   const isCustomer = user?.role === 'customer'
+  const isStaff = user?.role === 'admin' || user?.role === 'seller'
+  const isManagementRoute =
+    location.pathname.startsWith('/admin') || location.pathname.startsWith('/seller')
+
+  // Global search is exclusively available to Customers/storefront visitors, never on Admin/Seller interfaces.
+  const showGlobalSearch = !isStaff && !isManagementRoute
   const topCategories = categories.slice(0, 6)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        {/* Mobile menu toggle */}
         <button
           type="button"
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+          className="rounded-xl p-2.5 text-zinc-700 hover:bg-slate-100 lg:hidden transition-colors"
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Toggle navigation menu"
+          aria-label="Toggle menu"
           aria-expanded={menuOpen}
         >
-          {menuOpen ? <MenuIcon /> : <MenuIcon />}
+          {menuOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
         </button>
 
-        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-brand-600">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white">S</span>
-          <span className="hidden sm:inline">ShopKart</span>
+        {/* Brand Logo */}
+        <Link
+          to={user?.role === 'admin' ? '/admin' : user?.role === 'seller' ? '/seller' : '/'}
+          className="flex items-center gap-2.5 group"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-orange-600 font-extrabold text-white text-lg shadow-sm group-hover:bg-orange-700 transition-colors">
+            S
+          </span>
+          <span className="hidden text-xl font-bold tracking-tight text-zinc-950 sm:inline">
+            Shop<span className="text-orange-600">Kart</span>
+          </span>
         </Link>
 
-        <form onSubmit={handleSearch} className="relative ml-auto flex-1 lg:ml-6 lg:max-w-xl">
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search for products, brands and more"
-            className="input-field pl-9"
-            aria-label="Search products"
-          />
-        </form>
+        {/* Global Product Search (Customers only) */}
+        {showGlobalSearch ? (
+          <form onSubmit={handleSearch} className="relative ml-auto flex-1 lg:ml-8 lg:max-w-xl">
+            <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search products, brands and categories..."
+              className="input-field pl-10 pr-4 bg-slate-50 border-slate-200 focus:bg-white"
+              aria-label="Search products"
+            />
+          </form>
+        ) : (
+          <div className="ml-auto flex-1" />
+        )}
 
-        <nav className="flex items-center gap-1">
+        {/* Navigation & Action Controls */}
+        <nav className="flex items-center gap-2">
           {isCustomer ? (
             <>
               <NavLink
                 to="/wishlist"
-                className="relative hidden rounded-lg p-2 text-slate-600 hover:bg-slate-100 sm:block"
+                className={({ isActive }) =>
+                  `relative rounded-xl p-2.5 transition-colors ${
+                    isActive ? 'bg-orange-50 text-orange-600' : 'text-zinc-700 hover:bg-slate-100'
+                  }`
+                }
                 aria-label="Wishlist"
               >
-                <HeartIcon />
+                <FiHeart className="h-5 w-5" />
                 {wishlistCount > 0 ? (
-                  <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-orange-600 px-1 text-[11px] font-bold text-white shadow-xs">
                     {wishlistCount}
                   </span>
                 ) : null}
@@ -107,12 +144,16 @@ export function Navbar() {
 
               <NavLink
                 to="/cart"
-                className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+                className={({ isActive }) =>
+                  `relative rounded-xl p-2.5 transition-colors ${
+                    isActive ? 'bg-orange-50 text-orange-600' : 'text-zinc-700 hover:bg-slate-100'
+                  }`
+                }
                 aria-label="Cart"
               >
-                <CartIcon />
+                <FiShoppingCart className="h-5 w-5" />
                 {cartCount > 0 ? (
-                  <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-orange-600 px-1 text-[11px] font-bold text-white shadow-xs">
                     {cartCount}
                   </span>
                 ) : null}
@@ -125,74 +166,101 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setAccountOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-slate-50 transition-colors"
                 aria-expanded={accountOpen}
                 aria-haspopup="menu"
               >
-                <UserIcon />
-                <span className="hidden max-w-24 truncate text-sm font-medium md:inline">
-                  {user.name.split(' ')[0]}
-                </span>
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-orange-100 text-orange-700 font-bold text-xs">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden max-w-28 truncate md:inline">{user.name.split(' ')[0]}</span>
+                <FiChevronDown className="h-4 w-4 text-slate-400" />
               </button>
 
               {accountOpen ? (
                 <div
                   role="menu"
-                  className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                  className="absolute right-0 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl"
                 >
-                  <div className="border-b border-slate-100 px-4 py-2">
-                    <p className="truncate text-sm font-semibold text-slate-800">{user.name}</p>
+                  <div className="border-b border-slate-100 px-3.5 py-2.5">
+                    <p className="truncate text-sm font-bold text-zinc-900">{user.name}</p>
                     <p className="truncate text-xs text-slate-500">{user.email}</p>
-                    <span className="mt-1 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                    <span className="mt-1.5 inline-block rounded-full bg-orange-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">
                       {user.role}
                     </span>
                   </div>
 
-                  <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                    My profile
-                  </Link>
-
-                  {isCustomer ? (
-                    <>
-                      <Link to="/orders" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                        My orders
-                      </Link>
-                      <Link to="/addresses" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                        My addresses
-                      </Link>
-                      <Link to="/wishlist" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                        My wishlist
-                      </Link>
-                    </>
-                  ) : null}
-
-                  {user.role === 'admin' ? (
-                    <Link to="/admin" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                      Admin console
+                  <div className="py-1">
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-slate-100 transition-colors"
+                      role="menuitem"
+                    >
+                      <FiUser className="h-4 w-4 text-slate-400" />
+                      My profile
                     </Link>
-                  ) : null}
 
-                  {user.role === 'seller' ? (
-                    <>
-                      <Link to="/seller" className="block px-4 py-2 text-sm hover:bg-slate-50" role="menuitem">
-                        Seller panel
-                      </Link>
+                    {isCustomer ? (
+                      <>
+                        <Link
+                          to="/orders"
+                          className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-slate-100 transition-colors"
+                          role="menuitem"
+                        >
+                          <FiPackage className="h-4 w-4 text-slate-400" />
+                          My orders
+                        </Link>
+                        <Link
+                          to="/addresses"
+                          className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-slate-100 transition-colors"
+                          role="menuitem"
+                        >
+                          <FiMapPin className="h-4 w-4 text-slate-400" />
+                          My addresses
+                        </Link>
+                        <Link
+                          to="/wishlist"
+                          className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-slate-100 transition-colors"
+                          role="menuitem"
+                        >
+                          <FiHeart className="h-4 w-4 text-slate-400" />
+                          My wishlist
+                        </Link>
+                      </>
+                    ) : null}
+
+                    {user.role === 'admin' ? (
                       <Link
-                        to="/seller/orders/new"
-                        className="block px-4 py-2 text-sm hover:bg-slate-50"
+                        to="/admin"
+                        className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-orange-700 bg-orange-50/60 hover:bg-orange-50 transition-colors mt-1"
                         role="menuitem"
                       >
-                        Create order
+                        <FiGrid className="h-4 w-4 text-orange-600" />
+                        Admin console
                       </Link>
-                    </>
-                  ) : null}
+                    ) : null}
+
+                    {user.role === 'seller' ? (
+                      <>
+                        <Link
+                          to="/seller"
+                          className="flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium text-orange-700 bg-orange-50/60 hover:bg-orange-50 transition-colors mt-1"
+                          role="menuitem"
+                        >
+                          <FiGrid className="h-4 w-4 text-orange-600" />
+                          Seller panel
+                        </Link>
+                      </>
+                    ) : null}
+                  </div>
 
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full border-t border-slate-100 px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                    className="flex w-full items-center gap-2.5 rounded-xl border-t border-slate-100 px-3.5 py-2.5 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                     role="menuitem"
                   >
+                    <FiLogOut className="h-4 w-4" />
                     Log out
                   </button>
                 </div>
@@ -211,65 +279,63 @@ export function Navbar() {
         </nav>
       </div>
 
-      <div className="hidden border-t border-slate-100 lg:block">
-        <div className="mx-auto flex max-w-7xl items-center gap-1 px-4">
-          <NavLink
-            to="/products"
-            className={({ isActive }) =>
-              `px-3 py-2 text-sm font-medium transition-colors ${
-                isActive ? 'text-brand-600' : 'text-slate-600 hover:text-brand-600'
-              }`
-            }
-          >
-            All products
-          </NavLink>
-          {topCategories.map((category) => (
-            <Link
-              key={category.id}
-              to={`/products?category=${category.slug}`}
-              className="px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-brand-600"
+      {/* Sub-Navigation for Categories (Customers only) */}
+      {showGlobalSearch ? (
+        <div className="hidden border-t border-slate-100 bg-white lg:block">
+          <div className="mx-auto flex max-w-7xl items-center gap-1 px-6">
+            <NavLink
+              to="/products"
+              className={({ isActive }) =>
+                `px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 ${
+                  isActive
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-zinc-600 hover:text-orange-600 hover:border-orange-300'
+                }`
+              }
             >
-              {category.name}
-            </Link>
-          ))}
+              All Products
+            </NavLink>
+            {topCategories.map((category) => (
+              <Link
+                key={category.id}
+                to={`/products?category=${category.slug}`}
+                className="px-4 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:text-orange-600"
+              >
+                {category.name}
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
+      {/* Mobile Drawer Menu */}
       {menuOpen ? (
-        <div className="border-t border-slate-200 bg-white lg:hidden">
-          <div className="flex items-center justify-between px-4 py-2">
-            <span className="text-sm font-semibold text-slate-500">Browse</span>
+        <div className="border-t border-slate-200 bg-white p-4 lg:hidden">
+          <div className="mb-3 flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Categories</span>
             <button
               type="button"
               onClick={() => setMenuOpen(false)}
-              className="rounded p-1 text-slate-500"
-              aria-label="Close menu"
+              className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
             >
-              <CloseIcon className="h-4 w-4" />
+              <FiX className="h-5 w-5" />
             </button>
           </div>
-          <Link to="/products" className="block px-4 py-2 text-sm hover:bg-slate-50">
-            All products
+          <Link
+            to="/products"
+            className="block rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-slate-50"
+          >
+            All Products
           </Link>
           {categories.map((category) => (
             <Link
               key={category.id}
               to={`/products?category=${category.slug}`}
-              className="block px-4 py-2 text-sm hover:bg-slate-50"
+              className="block rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-slate-50"
             >
               {category.name}
             </Link>
           ))}
-          {isCustomer ? (
-            <Link to="/wishlist" className="block px-4 py-2 text-sm hover:bg-slate-50 sm:hidden">
-              Wishlist ({wishlistCount})
-            </Link>
-          ) : null}
-          {!user ? (
-            <Link to="/login" className="block px-4 py-2 text-sm hover:bg-slate-50 sm:hidden">
-              Log in
-            </Link>
-          ) : null}
         </div>
       ) : null}
     </header>

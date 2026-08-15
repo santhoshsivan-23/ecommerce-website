@@ -159,9 +159,6 @@ async function loadSelections(rawItems, { transaction, sellerId = null } = {}) {
     });
     if (!product) throw ApiError.badRequest(`Product ${entry.productId} does not exist`);
 
-    if (sellerId && product.sellerId !== sellerId) {
-      throw ApiError.forbidden(`"${product.name}" is not one of your products`);
-    }
     if (!product.isActive) throw ApiError.badRequest(`"${product.name}" is disabled`);
 
     const hasVariants = product.variants && product.variants.length > 0;

@@ -220,13 +220,10 @@ export default function SellerOrders() {
                 </div>
 
                 <div className="text-right">
-                  <p className="text-xs text-slate-400">My share of this order</p>
-                  <p className="text-lg font-bold text-slate-900">{formatPrice(order.sellerSubtotal)}</p>
-                  {!order.isSoleSeller ? (
-                    <p className="text-xs text-slate-400">Order total {formatPrice(order.total)}</p>
-                  ) : null}
+                  <p className="text-xs text-slate-400 font-medium">Order Total</p>
+                  <p className="text-lg font-bold text-slate-900">{formatPrice(order.total || order.sellerSubtotal)}</p>
                   <Link to={`/seller/orders/${order.id}`} className="btn-outline mt-2 text-xs">
-                    Open
+                    Open Order
                   </Link>
                 </div>
               </div>

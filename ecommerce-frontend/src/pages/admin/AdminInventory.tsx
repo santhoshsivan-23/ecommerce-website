@@ -440,7 +440,7 @@ export default function AdminInventory() {
                         </td>
                         <td className="px-2 py-2 text-xs text-slate-500">
                           {movement.reason ?? '—'}
-                          {movement.createdBy ? ` · ${movement.createdBy.name}` : ''}
+                          {movement.createdBy ? ` · ${movement.createdBy.name} (${movement.createdBy.role === 'admin' ? 'Admin' : 'Seller'})` : ''}
                         </td>
                       </tr>
                     ))}

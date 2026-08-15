@@ -16,7 +16,12 @@ export function ProtectedRoute({ roles }: ProtectedRouteProps) {
   if (initialising) return <PageLoader label="Checking your session…" />
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />
+    const loginTarget = roles?.includes('admin')
+      ? '/admin/login'
+      : roles?.includes('seller')
+        ? '/seller/login'
+        : '/login'
+    return <Navigate to={loginTarget} state={{ from: location.pathname + location.search }} replace />
   }
 
   if (roles && !roles.includes(user.role)) {
@@ -26,12 +31,39 @@ export function ProtectedRoute({ roles }: ProtectedRouteProps) {
   return <Outlet />
 }
 
-/** Keeps signed-in users away from the login and register screens. */
+/** Keeps signed-in users away from public customer login/register screens. */
 export function GuestRoute() {
   const { user, initialising } = useAppSelector((state) => state.auth)
 
   if (initialising) return <PageLoader label="Checking your session…" />
-  if (user) return <Navigate to="/" replace />
+  if (user) {
+    const home = user.role === 'admin' ? '/admin' : user.role === 'seller' ? '/seller' : '/'
+    return <Navigate to={home} replace />
+  }
+
+  return <Outlet />
+}
+
+/** Dedicated guest route for Admin auth pages (/admin/login, /admin/register). */
+export function AdminGuestRoute() {
+  const { user, initialising } = useAppSelector((state) => state.auth)
+
+  if (initialising) return <PageLoader label="Checking your session…" />
+  if (user) {
+    return <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'seller' ? '/seller' : '/'} replace />
+  }
+
+  return <Outlet />
+}
+
+/** Dedicated guest route for Seller auth pages (/seller/login). */
+export function SellerGuestRoute() {
+  const { user, initialising } = useAppSelector((state) => state.auth)
+
+  if (initialising) return <PageLoader label="Checking your session…" />
+  if (user) {
+    return <Navigate to={user.role === 'seller' ? '/seller' : user.role === 'admin' ? '/admin' : '/'} replace />
+  }
 
   return <Outlet />
 }

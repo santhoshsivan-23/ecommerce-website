@@ -41,8 +41,8 @@ exports.getStats = asyncHandler(async (req, res) => {
   const orderWhere = placedAt ? { placedAt } : {};
 
   const [productCounts, lowStock, itemAggregate, orderRows] = await Promise.all([
+    // Counts across the shared business product catalogue.
     Product.findOne({
-      where: { sellerId },
       attributes: [
         [fn('COUNT', col('id')), 'total'],
         [fn('SUM', literal('CASE WHEN isActive = 1 THEN 1 ELSE 0 END')), 'active'],
@@ -56,13 +56,13 @@ exports.getStats = asyncHandler(async (req, res) => {
     }),
 
     Product.findAll({
-      where: { sellerId, stock: { [Op.lte]: LOW_STOCK_THRESHOLD } },
+      where: { stock: { [Op.lte]: LOW_STOCK_THRESHOLD } },
       attributes: ['id', 'name', 'slug', 'stock', 'isActive'],
       order: [['stock', 'ASC'], ['name', 'ASC']],
       limit: 10,
     }),
 
-    // Revenue counts only this seller's lines, never the whole order total.
+    // Revenue represents employee performance on assigned/created order lines.
     OrderItem.findOne({
       attributes: [
         [fn('COALESCE', fn('SUM', col('OrderItem.lineTotal')), 0), 'revenue'],
@@ -84,15 +84,6 @@ exports.getStats = asyncHandler(async (req, res) => {
     Order.findAll({
       attributes: ['status', [fn('COUNT', literal('DISTINCT `Order`.`id`')), 'count']],
       where: orderWhere,
-      include: [
-        {
-          model: OrderItem,
-          as: 'items',
-          attributes: [],
-          where: { sellerId },
-          required: true,
-        },
-      ],
       group: ['Order.status'],
       raw: true,
     }),
@@ -138,7 +129,8 @@ exports.listInventory = asyncHandler(async (req, res) => {
   const pageNum = Math.max(1, Number(page) || 1);
   const perPage = Math.min(100, Math.max(1, Number(limit) || 20));
 
-  const where = { sellerId: req.user.id };
+  // Shared business inventory
+  const where = {};
   if (q && String(q).trim()) where.name = { [Op.like]: `%${String(q).trim()}%` };
   if (stockLevel === 'out') where.stock = { [Op.lte]: 0 };
   if (stockLevel === 'low') where.stock = { [Op.gt]: 0, [Op.lte]: LOW_STOCK_THRESHOLD };
@@ -197,9 +189,6 @@ exports.adjustInventory = asyncHandler(async (req, res) => {
       lock: transaction.LOCK.UPDATE,
     });
     if (!product) throw ApiError.notFound('Product not found');
-    if (product.sellerId !== req.user.id) {
-      throw ApiError.forbidden('This product belongs to another seller');
-    }
 
     let variant = null;
     if (variantId) {
@@ -269,9 +258,6 @@ exports.getStockHistory = asyncHandler(async (req, res) => {
     attributes: ['id', 'name', 'stock', 'sellerId'],
   });
   if (!product) throw ApiError.notFound('Product not found');
-  if (product.sellerId !== req.user.id) {
-    throw ApiError.forbidden('This product belongs to another seller');
-  }
 
   const movements = await StockMovement.findAll({
     where: { productId: product.id },
@@ -295,40 +281,27 @@ exports.getStockHistory = asyncHandler(async (req, res) => {
 
 /* ------------------------------- Seller orders ------------------------------ */
 
-/** Reduces an order to just this seller's lines, with their own subtotal. */
-function toSellerOrder(order, sellerId) {
+/** Formats order data for seller operational view. */
+function toSellerOrder(order) {
   const plain = order.toJSON();
-  const myItems = (plain.items || []).filter((item) => item.sellerId === sellerId);
-
-  const sellerSubtotal = myItems.reduce((sum, item) => sum + Number(item.lineTotal), 0);
-  const isSoleSeller = (plain.items || []).length === myItems.length;
+  const items = plain.items || [];
+  const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
 
   return {
     ...plain,
-    // Only ever expose the lines this seller is responsible for.
-    items: myItems,
-    sellerItemCount: myItems.reduce((sum, item) => sum + item.quantity, 0),
-    sellerSubtotal: Math.round(sellerSubtotal * 100) / 100,
-    isSoleSeller,
-    // Advancing a shared order would speak for other sellers too, so it is
-    // reserved for the admin.
-    allowedNextStatuses: isSoleSeller ? order.allowedNextStatuses() : [],
-    canUpdateStatus: isSoleSeller && order.allowedNextStatuses().length > 0,
+    items,
+    sellerItemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+    sellerSubtotal: Math.round(subtotal * 100) / 100,
+    isSoleSeller: true,
+    allowedNextStatuses: order.allowedNextStatuses ? order.allowedNextStatuses() : [],
+    canUpdateStatus: order.allowedNextStatuses ? order.allowedNextStatuses().length > 0 : false,
   };
 }
 
-const SELLER_ORDER_INCLUDES = (sellerId) => [
+const SELLER_ORDER_INCLUDES = [
   { model: OrderItem, as: 'items', separate: true, order: [['id', 'ASC']] },
   { model: PaymentMethod, as: 'paymentMethod', attributes: ['id', 'name', 'code', 'icon'] },
   { model: User, as: 'customer', attributes: ['id', 'name', 'email', 'phone'] },
-  {
-    // Restricts the result set to orders containing one of this seller's lines.
-    model: OrderItem,
-    as: 'sellerLines',
-    attributes: [],
-    where: { sellerId },
-    required: true,
-  },
 ];
 
 // GET /api/seller/orders
@@ -357,7 +330,7 @@ exports.listOrders = asyncHandler(async (req, res) => {
 
   const { rows, count } = await Order.findAndCountAll({
     where,
-    include: SELLER_ORDER_INCLUDES(req.user.id),
+    include: SELLER_ORDER_INCLUDES,
     order: [['placedAt', 'DESC'], ['id', 'DESC']],
     limit: perPage,
     offset: (pageNum - 1) * perPage,
@@ -368,7 +341,7 @@ exports.listOrders = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      orders: rows.map((order) => toSellerOrder(order, req.user.id)),
+      orders: rows.map((order) => toSellerOrder(order)),
       pagination: {
         total: count,
         page: pageNum,
@@ -398,10 +371,7 @@ exports.getOrder = asyncHandler(async (req, res) => {
   });
   if (!order) throw ApiError.notFound('Order not found');
 
-  const ownsALine = (order.items || []).some((item) => item.sellerId === req.user.id);
-  if (!ownsALine) throw ApiError.forbidden('This order does not contain any of your products');
-
-  res.json({ success: true, data: { order: toSellerOrder(order, req.user.id) } });
+  res.json({ success: true, data: { order: toSellerOrder(order) } });
 });
 
 // PATCH /api/seller/orders/:id/status
@@ -416,14 +386,6 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     if (!found) throw ApiError.notFound('Order not found');
 
     const items = found.items || [];
-    if (!items.some((item) => item.sellerId === req.user.id)) {
-      throw ApiError.forbidden('This order does not contain any of your products');
-    }
-    if (!items.every((item) => item.sellerId === req.user.id)) {
-      throw ApiError.forbidden(
-        'This order also contains other sellers’ products, so only an admin can change its status'
-      );
-    }
 
     if (found.status === status) throw ApiError.badRequest(`This order is already ${status}`);
 
@@ -452,7 +414,6 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     if (status === 'shipped') found.shippedAt = new Date();
     if (status === 'delivered') {
       found.deliveredAt = new Date();
-      // Cash is collected on delivery, so delivering settles it.
       if (found.paymentStatus === 'pending') found.paymentStatus = 'paid';
     }
 
@@ -468,8 +429,6 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     return found;
   });
 
-  // The detail screen keeps showing its timeline after an update, so the
-  // response has to carry the history too.
   const full = await Order.findByPk(order.id, {
     include: [
       { model: OrderItem, as: 'items', separate: true, order: [['id', 'ASC']] },
@@ -519,11 +478,34 @@ exports.listCustomers = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { customers } });
 });
 
+// POST /api/seller/customers -> create a customer directly from seller portal
+exports.createCustomer = asyncHandler(async (req, res) => {
+  const { name, email, phone } = req.body;
+
+  const existing = await User.findOne({ where: { email: String(email).toLowerCase() } });
+  if (existing) throw ApiError.conflict('An account with this email already exists');
+
+  const customer = await User.create({
+    name,
+    email: String(email).toLowerCase(),
+    phone: phone || null,
+    password: 'Customer@123',
+    role: 'customer',
+    isActive: true,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: `Customer ${customer.name} created successfully`,
+    data: { customer: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone } },
+  });
+});
+
 // POST /api/seller/orders/quote -> price a draft before creating it
 exports.quoteDraftOrder = asyncHandler(async (req, res) => {
   const { items, couponCode } = req.body;
 
-  const selections = await loadSelections(items, { sellerId: req.user.id });
+  const selections = await loadSelections(items);
   const quote = await quoteSelections(selections, { couponCode: couponCode || null });
 
   res.json({ success: true, data: quote });
@@ -543,14 +525,31 @@ exports.createOrder = asyncHandler(async (req, res) => {
   } = req.body;
 
   const order = await sequelize.transaction(async (transaction) => {
-    const customer = await User.findOne({
-      where: { id: customerId, role: 'customer', isActive: true },
-      transaction,
-    });
-    if (!customer) throw ApiError.badRequest('Please select a valid customer');
+    let customer = null;
+    if (customerId && customerId !== 'walk-in' && Number(customerId) > 0) {
+      customer = await User.findOne({
+        where: { id: Number(customerId), role: 'customer', isActive: true },
+        transaction,
+      });
+      if (!customer) throw ApiError.badRequest('Please select a valid customer');
+    } else {
+      // Automatically use Walk-in Customer for direct / walk-in sales
+      [customer] = await User.findOrCreate({
+        where: { email: 'walkin@shop.com' },
+        defaults: {
+          name: 'Walk-in Customer',
+          email: 'walkin@shop.com',
+          phone: '0000000000',
+          password: 'WalkInUser@123',
+          role: 'customer',
+          isActive: true,
+        },
+        transaction,
+      });
+    }
 
-    // Only this seller's own products can go on the order.
-    const selections = await loadSelections(items, { transaction, sellerId: req.user.id });
+    // Shared business catalogue product selections
+    const selections = await loadSelections(items, { transaction });
     const quote = await quoteSelections(selections, {
       couponCode: couponCode || null,
       strictCoupon: Boolean(couponCode),
@@ -562,14 +561,13 @@ exports.createOrder = asyncHandler(async (req, res) => {
       throw ApiError.badRequest(`${problem.product.name}: ${problem.issues.join(', ')}`);
     }
 
-    // Delivery details: an address the customer already has, or one typed in.
+    // Delivery details: saved address, entered address, or default direct walk-in sale.
     let address = null;
-    if (addressId) {
+    if (addressId && customer.id) {
       address = await Address.findOne({
         where: { id: addressId, userId: customer.id },
         transaction,
       });
-      if (!address) throw ApiError.badRequest('That address does not belong to the selected customer');
     }
 
     const shipping = address
@@ -589,7 +587,7 @@ exports.createOrder = asyncHandler(async (req, res) => {
         ? {
             addressId: null,
             shippingFullName: shippingAddress.fullName || customer.name,
-            shippingPhone: shippingAddress.phone || customer.phone || '',
+            shippingPhone: shippingAddress.phone || customer.phone || '0000000000',
             shippingAddressLine1: shippingAddress.addressLine1,
             shippingAddressLine2: shippingAddress.addressLine2 || null,
             shippingLandmark: shippingAddress.landmark || null,
@@ -598,14 +596,18 @@ exports.createOrder = asyncHandler(async (req, res) => {
             shippingPostalCode: shippingAddress.postalCode,
             shippingCountry: shippingAddress.country || 'India',
           }
-        : null;
-
-    if (!shipping) {
-      throw ApiError.badRequest('Select a saved address or enter a delivery address');
-    }
-    if (!shipping.shippingPhone) {
-      throw ApiError.badRequest('A contact phone number is required for delivery');
-    }
+        : {
+            addressId: null,
+            shippingFullName: customer.name || 'Walk-in Customer',
+            shippingPhone: customer.phone || '0000000000',
+            shippingAddressLine1: 'Over the Counter / Direct Sale',
+            shippingAddressLine2: null,
+            shippingLandmark: null,
+            shippingCity: 'Direct Sale',
+            shippingState: 'Direct Sale',
+            shippingPostalCode: '000000',
+            shippingCountry: 'India',
+          };
 
     const method = await PaymentMethod.findOne({
       where: {

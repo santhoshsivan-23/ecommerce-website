@@ -29,6 +29,16 @@ router.patch(
 
 /* Customers available when raising a direct order */
 router.get('/customers', controller.listCustomers);
+router.post(
+  '/customers',
+  [
+    body('name').trim().isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
+    body('email').isEmail().withMessage('Enter a valid email address').normalizeEmail(),
+    body('phone').optional({ values: 'falsy' }).isMobilePhone('any').withMessage('Enter a valid phone number'),
+  ],
+  validate,
+  controller.createCustomer
+);
 
 /* Orders. `/quote` is declared before `/:id` so it is not read as an order id. */
 router.get('/orders', controller.listOrders);
@@ -37,7 +47,7 @@ router.post('/orders/quote', controller.quoteDraftOrder);
 router.post(
   '/orders',
   [
-    body('customerId').isInt({ gt: 0 }).withMessage('Please select a customer'),
+    body('customerId').optional({ values: 'falsy' }),
     body('items').isArray({ min: 1 }).withMessage('Add at least one product to the order'),
     body('items.*.productId').isInt({ gt: 0 }).withMessage('Invalid product in the order'),
     body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),

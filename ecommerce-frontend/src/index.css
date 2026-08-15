@@ -2,16 +2,16 @@
 @import 'react-toastify/dist/ReactToastify.css';
 
 @theme {
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #d9e6ff;
-  --color-brand-200: #bcd3ff;
-  --color-brand-300: #8eb6ff;
-  --color-brand-400: #598fff;
-  --color-brand-500: #3366ff;
-  --color-brand-600: #1f47f0;
-  --color-brand-700: #1a37d2;
-  --color-brand-800: #1c31a9;
-  --color-brand-900: #1c2f85;
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
@@ -22,7 +22,7 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-slate-50 text-zinc-900 antialiased;
   }
 
   /* Hides the spinner on number inputs so quantity fields keep their own controls. */
@@ -38,46 +38,59 @@
 
 @layer components {
   .input-field {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800
-           placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100
-           focus:outline-none disabled:bg-slate-100;
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-zinc-900
+           placeholder:text-slate-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100
+           focus:outline-none disabled:bg-slate-100 transition-all;
   }
 
-  /* Tailwind v4 cannot @apply a class defined in this layer, so every button
-     variant repeats the shared base utilities rather than composing `.btn`. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-           transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-           transition-colors disabled:cursor-not-allowed disabled:opacity-60
-           bg-brand-600 text-white hover:bg-brand-700;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60
+           bg-orange-600 text-white hover:bg-orange-700 shadow-xs hover:shadow-orange-500/20;
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-           transition-colors disabled:cursor-not-allowed disabled:opacity-60
-           border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60
+           border border-slate-300 bg-white text-zinc-800 hover:bg-slate-50 hover:border-slate-400;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-           transition-colors disabled:cursor-not-allowed disabled:opacity-60
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60
            bg-rose-600 text-white hover:bg-rose-700;
   }
 
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-slate-200 bg-white shadow-xs transition-all;
   }
 
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1 block text-sm font-semibold text-zinc-800;
   }
 
   .field-error {
-    @apply mt-1 text-xs text-rose-600;
+    @apply mt-1 text-xs text-rose-600 font-medium;
+  }
+
+  /* Custom thin Orange Scrollbar for Dashboard Sidebars */
+  .custom-scrollbar-orange::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar-orange::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar-orange::-webkit-scrollbar-thumb {
+    background-color: #f97316;
+    border-radius: 10px;
+  }
+  .custom-scrollbar-orange::-webkit-scrollbar-thumb:hover {
+    background-color: #ea580c;
   }
 }
 
