@@ -11,6 +11,7 @@ const {
   Order,
   OrderItem,
   StockMovement,
+  Setting,
 } = require('../models');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
@@ -21,6 +22,44 @@ const {
   describeRange,
 } = require('../utils/reporting');
 const { sellerPerformance, productPerformance } = require('./reportController');
+
+// GET /api/settings (public setting reader)
+exports.getSettings = asyncHandler(async (req, res) => {
+  const rows = await Setting.findAll();
+  const settingsMap = rows.reduce((acc, r) => ({ ...acc, [r.key]: r.value }), {});
+
+  res.json({
+    success: true,
+    data: {
+      shopFirstName: settingsMap.shopFirstName || 'Fresh',
+      shopSecondName: settingsMap.shopSecondName || 'Mart',
+    },
+  });
+});
+
+// PUT /api/admin/settings (admin setting writer)
+exports.updateSettings = asyncHandler(async (req, res) => {
+  const { shopFirstName, shopSecondName } = req.body;
+
+  if (shopFirstName !== undefined) {
+    await Setting.upsert({ key: 'shopFirstName', value: String(shopFirstName).trim() });
+  }
+  if (shopSecondName !== undefined) {
+    await Setting.upsert({ key: 'shopSecondName', value: String(shopSecondName).trim() });
+  }
+
+  const rows = await Setting.findAll();
+  const settingsMap = rows.reduce((acc, r) => ({ ...acc, [r.key]: r.value }), {});
+
+  res.json({
+    success: true,
+    message: 'Shop Name settings updated successfully',
+    data: {
+      shopFirstName: settingsMap.shopFirstName || 'Fresh',
+      shopSecondName: settingsMap.shopSecondName || 'Mart',
+    },
+  });
+});
 
 const num = (value) => Number(value || 0);
 const round2 = (value) => Math.round(value * 100) / 100;

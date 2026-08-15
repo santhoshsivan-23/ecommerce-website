@@ -69,14 +69,27 @@ export default function SellerCreateOrder() {
   const [lines, setLines] = useState<DraftLine[]>([])
   const [variantPicker, setVariantPicker] = useState<Product | null>(null)
 
-  // Step 3: Payment Details
+  // Step 3: Payment & Coupon Details
   const [paymentMethodId, setPaymentMethodId] = useState<number | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponInput, setCouponInput] = useState('')
+  const [publicCoupons, setPublicCoupons] = useState<
+    Array<{ id: number; code: string; description: string | null; discountType: string; discountValue: number }>
+  >([])
   const [note, setNote] = useState('')
   const [placing, setPlacing] = useState(false)
 
-  // Fetch payment methods initially
+  // Fetch payment methods and public coupons initially
   useEffect(() => {
     dispatch(fetchPaymentMethods())
+    fetch('/api/coupons/public')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data?.coupons)) {
+          setPublicCoupons(data.data.coupons)
+        }
+      })
+      .catch(() => {})
   }, [dispatch])
 
   // Dedicated Product Search API (40 items/page)
@@ -100,9 +113,9 @@ export default function SellerCreateOrder() {
     }
   }, [paymentMethods, paymentMethodId])
 
-  // Price draft quote on server whenever cart lines change
+  // Price draft quote on server whenever cart lines or coupon change
   const requestQuote = useCallback(
-    (nextLines: DraftLine[]) => {
+    (nextLines: DraftLine[], code?: string) => {
       if (nextLines.length === 0) {
         dispatch(clearDraftQuote())
         return
@@ -114,17 +127,18 @@ export default function SellerCreateOrder() {
             variantId: line.variantId,
             quantity: line.quantity,
           })),
+          couponCode: code !== undefined ? (code || null) : (couponCode || null),
         })
       ).then((result) => {
         if (quoteDraftOrder.rejected.match(result)) notifyApiError(result.payload)
       })
     },
-    [dispatch]
+    [dispatch, couponCode]
   )
 
   useEffect(() => {
-    requestQuote(lines)
-  }, [lines, requestQuote])
+    requestQuote(lines, couponCode)
+  }, [lines, couponCode, requestQuote])
 
   // --- STEP 1: CUSTOMER HANDLING ---
 
@@ -917,6 +931,85 @@ export default function SellerCreateOrder() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Promo Code & Available Coupons Card */}
+              <div className="card p-5 border-slate-200">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Promo Code</h4>
+                
+                <div className="flex gap-2 mb-3">
+                  <input
+                    className="input-field font-mono text-sm uppercase"
+                    placeholder="Enter promo code"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary shrink-0 text-xs px-4"
+                    onClick={() => {
+                      const code = couponInput.trim()
+                      setCouponCode(code)
+                      requestQuote(lines, code)
+                    }}
+                  >
+                    Apply
+                  </button>
+                  {couponCode ? (
+                    <button
+                      type="button"
+                      className="btn-outline shrink-0 text-xs px-3 text-rose-600 border-rose-200"
+                      onClick={() => {
+                        setCouponInput('')
+                        setCouponCode('')
+                        requestQuote(lines, '')
+                      }}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                {couponCode ? (
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-800 font-medium mb-3">
+                    Coupon <strong>{couponCode}</strong> applied to this order!
+                  </div>
+                ) : null}
+
+                {/* Available Coupons List (Public Coupons with Toggle ON) */}
+                {publicCoupons.length > 0 ? (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <p className="text-xs font-bold text-zinc-900 mb-2">Available Coupons</p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {publicCoupons.map((coupon) => (
+                        <div
+                          key={coupon.id}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-orange-200/80 bg-orange-50/50"
+                        >
+                          <div>
+                            <p className="font-mono font-bold text-xs text-orange-900">{coupon.code}</p>
+                            <p className="text-[11px] text-orange-700">
+                              {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                              {coupon.description ? ` · ${coupon.description}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCouponInput(coupon.code)
+                              setCouponCode(coupon.code)
+                              requestQuote(lines, coupon.code)
+                              notify.success(`Coupon ${coupon.code} applied`)
+                            }}
+                            className="btn-outline text-[11px] py-1 px-2.5 border-orange-300 text-orange-700 hover:bg-orange-100 font-bold shrink-0"
+                          >
+                            Apply Coupon
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Payment Method Card */}

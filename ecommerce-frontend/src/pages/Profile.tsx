@@ -19,12 +19,63 @@ export default function Profile() {
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [shopFirstName, setShopFirstName] = useState(
+    () => localStorage.getItem('shop_first_name') || 'Fresh'
+  )
+  const [shopSecondName, setShopSecondName] = useState(
+    () => localStorage.getItem('shop_second_name') || 'Mart'
+  )
+  const [savingShopName, setSavingShopName] = useState(false)
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetch('/api/admin/settings')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setShopFirstName(data.data.shopFirstName || 'Fresh')
+            setShopSecondName(data.data.shopSecondName || 'Mart')
+            localStorage.setItem('shop_first_name', data.data.shopFirstName || 'Fresh')
+            localStorage.setItem('shop_second_name', data.data.shopSecondName || 'Mart')
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user?.role])
 
   useEffect(() => {
     if (user) setProfileForm({ name: user.name, phone: user.phone ?? '' })
   }, [user])
 
   if (!user) return null
+
+  const handleShopNameSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSavingShopName(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopFirstName: shopFirstName.trim(),
+          shopSecondName: shopSecondName.trim(),
+        }),
+      })
+      const data = await res.json()
+      setSavingShopName(false)
+      if (data.success) {
+        localStorage.setItem('shop_first_name', shopFirstName.trim())
+        localStorage.setItem('shop_second_name', shopSecondName.trim())
+        window.dispatchEvent(new Event('shop-name-updated'))
+        notify.success('Shop Name updated successfully')
+      } else {
+        notify.error(data.message || 'Could not update Shop Name')
+      }
+    } catch {
+      setSavingShopName(false)
+      notify.error('Could not update Shop Name')
+    }
+  }
 
   const handleProfileSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -198,6 +249,61 @@ export default function Profile() {
               </button>
             </form>
           </div>
+
+          {user.role === 'admin' ? (
+            <div className="card p-5 border-orange-200 bg-orange-50/20">
+              <div className="mb-4">
+                <h2 className="text-base font-bold text-zinc-900">Shop Name Configuration</h2>
+                <p className="text-xs text-slate-500">
+                  Configure the business shop name rendered across Customer, Seller, and Admin portals.
+                </p>
+              </div>
+
+              <form onSubmit={handleShopNameSubmit} className="space-y-4">
+                <div>
+                  <label className="label" htmlFor="shopFirstName">
+                    First Name <span className="text-orange-600 font-bold">(Orange)</span>
+                  </label>
+                  <input
+                    id="shopFirstName"
+                    className="input-field border-orange-300"
+                    value={shopFirstName}
+                    onChange={(e) => setShopFirstName(e.target.value)}
+                    placeholder="e.g. Fresh or Orange"
+                  />
+                </div>
+
+                <div>
+                  <label className="label" htmlFor="shopSecondName">
+                    Second Name <span className="text-zinc-900 font-bold">(Black)</span>
+                  </label>
+                  <input
+                    id="shopSecondName"
+                    className="input-field"
+                    value={shopSecondName}
+                    onChange={(e) => setShopSecondName(e.target.value)}
+                    placeholder="e.g. Mart or Black"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Live Display Preview:</p>
+                  <div className="flex items-center gap-1 font-extrabold text-xl tracking-tight">
+                    <span className="text-orange-600">{shopFirstName || 'Fresh'}</span>
+                    <span className="text-zinc-900">{shopSecondName || 'Mart'}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary w-full bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                  disabled={savingShopName}
+                >
+                  {savingShopName ? <Spinner className="h-4 w-4 text-white" label="Saving..." /> : 'Save Shop Name'}
+                </button>
+              </form>
+            </div>
+          ) : null}
 
           {user.role === 'customer' ? (
             <div className="card p-5">

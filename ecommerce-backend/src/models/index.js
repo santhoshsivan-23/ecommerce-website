@@ -16,6 +16,7 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const OrderStatusHistory = require('./OrderStatusHistory');
 const StockMovement = require('./StockMovement');
+const Setting = require('./Setting');
 
 /* ---------------------------------- Catalog --------------------------------- */
 
@@ -161,4 +162,5 @@ module.exports = {
   OrderItem,
   OrderStatusHistory,
   StockMovement,
+  Setting,
 };

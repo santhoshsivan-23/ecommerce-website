@@ -18,6 +18,7 @@ interface FormState {
   expiresAt: string
   usageLimit: string
   isActive: boolean
+  isPublic: boolean
 }
 
 const emptyForm: FormState = {
@@ -30,6 +31,7 @@ const emptyForm: FormState = {
   expiresAt: '',
   usageLimit: '',
   isActive: true,
+  isPublic: true,
 }
 
 /** Turns an ISO timestamp into the yyyy-mm-dd a date input expects. */
@@ -72,6 +74,7 @@ export default function AdminCoupons() {
       expiresAt: toDateInput(coupon.expiresAt),
       usageLimit: coupon.usageLimit ? String(coupon.usageLimit) : '',
       isActive: coupon.isActive,
+      isPublic: coupon.isPublic ?? true,
     })
     setErrors({})
     setShowForm(true)
@@ -105,6 +108,7 @@ export default function AdminCoupons() {
           expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
           usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
           isActive: form.isActive,
+          isPublic: form.isPublic,
         },
       })
     )
@@ -253,15 +257,25 @@ export default function AdminCoupons() {
               />
             </div>
 
-            <div className="flex items-end">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <div className="flex flex-wrap items-center gap-6 sm:col-span-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
                 <input
                   type="checkbox"
                   checked={form.isActive}
                   onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-                  className="accent-brand-600"
+                  className="accent-orange-600"
                 />
                 Active
+              </label>
+
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.isPublic}
+                  onChange={(event) => setForm({ ...form, isPublic: event.target.checked })}
+                  className="accent-orange-600"
+                />
+                Public Coupon (Show in Available Coupons list below Promo Code)
               </label>
             </div>
           </div>

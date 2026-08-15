@@ -19,6 +19,7 @@ import { resetCart } from '@/features/cart/cartSlice'
 import { resetWishlist } from '@/features/wishlist/wishlistSlice'
 import { resetAddresses } from '@/features/address/addressSlice'
 import { notify } from '@/utils/notify'
+import { ShopNameLogo } from '@/components/ui/ShopNameLogo'
 
 export function Navbar() {
   const dispatch = useAppDispatch()
@@ -91,38 +92,33 @@ export function Navbar() {
           {menuOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
         </button>
 
-        {/* Brand Logo */}
-        <Link
-          to={user?.role === 'admin' ? '/admin' : user?.role === 'seller' ? '/seller' : '/'}
-          className="flex items-center gap-2.5 group"
-        >
+        {/* Brand Logo with Two-Part Configurable Shop Name */}
+        <Link to="/" className="flex items-center gap-2 group shrink-0">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-orange-600 font-extrabold text-white text-lg shadow-sm group-hover:bg-orange-700 transition-colors">
             S
           </span>
-          <span className="hidden text-xl font-bold tracking-tight text-zinc-950 sm:inline">
-            Shop<span className="text-orange-600">Kart</span>
-          </span>
+          <ShopNameLogo className="text-lg" />
         </Link>
 
         {/* Global Product Search (Customers only) */}
         {showGlobalSearch ? (
-          <form onSubmit={handleSearch} className="relative ml-auto flex-1 lg:ml-8 lg:max-w-xl">
-            <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <form onSubmit={handleSearch} className="relative flex-1 max-w-xl mx-2">
+            <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search products, brands and categories..."
-              className="input-field pl-10 pr-4 bg-slate-50 border-slate-200 focus:bg-white"
+              placeholder="Search products..."
+              className="input-field pl-9 pr-3 text-xs py-2 bg-slate-50 border-slate-200 focus:bg-white"
               aria-label="Search products"
             />
           </form>
         ) : (
-          <div className="ml-auto flex-1" />
+          <div className="flex-1" />
         )}
 
-        {/* Navigation & Action Controls */}
-        <nav className="flex items-center gap-2">
+        {/* Navigation & Action Controls (Desktop view) */}
+        <nav className="hidden lg:flex items-center gap-2">
           {isCustomer ? (
             <>
               <NavLink

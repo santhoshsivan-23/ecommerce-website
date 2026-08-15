@@ -22,6 +22,11 @@ const loginValidations = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+const sellerLoginValidations = [
+  body('email').trim().notEmpty().withMessage('Email address or mobile number is required'),
+  body('password').notEmpty().withMessage('Password is required'),
+];
+
 // Customer registration
 router.post('/register', userRegisterValidations, validate, controller.register);
 router.post('/customer/register', userRegisterValidations, validate, controller.register);
@@ -34,8 +39,8 @@ router.post('/customer/login', loginValidations, validate, controller.login);
 router.post('/admin/register', userRegisterValidations, validate, controller.adminRegister);
 router.post('/admin/login', loginValidations, validate, controller.adminLogin);
 
-// Seller dedicated authentication flow
-router.post('/seller/login', loginValidations, validate, controller.sellerLogin);
+// Seller dedicated authentication flow (Email OR Mobile Number)
+router.post('/seller/login', sellerLoginValidations, validate, controller.sellerLogin);
 
 router.post('/logout', controller.logout);
 

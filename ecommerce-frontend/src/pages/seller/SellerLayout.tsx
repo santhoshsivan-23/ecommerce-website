@@ -20,10 +20,11 @@ import { resetCart } from '@/features/cart/cartSlice'
 import { resetWishlist } from '@/features/wishlist/wishlistSlice'
 import { resetAddresses } from '@/features/address/addressSlice'
 import { notify } from '@/utils/notify'
+import { ShopNameLogo } from '@/components/ui/ShopNameLogo'
 
 const NAV_ITEMS = [
   { to: '/seller', label: 'Dashboard', icon: FiGrid, end: true },
-  { to: '/seller/orders', label: 'Orders', icon: FiShoppingBag, end: false },
+  { to: '/seller/orders', label: 'Orders', icon: FiShoppingBag, end: true },
   { to: '/seller/orders/new', label: 'Create Order', icon: FiPlusCircle, end: false },
   { to: '/seller/products', label: 'Products', icon: FiPackage, end: false },
   { to: '/seller/inventory', label: 'Inventory', icon: FiLayers, end: false },
@@ -149,8 +150,9 @@ export default function SellerLayout() {
             >
               <FiMenu className="h-5 w-5" />
             </button>
-            <div className="hidden sm:block">
-              <span className="text-xs font-bold uppercase tracking-wider text-orange-600">Store Operations Panel</span>
+            <div className="flex items-center gap-3">
+              <ShopNameLogo className="text-base" />
+              <span className="text-xs font-bold uppercase tracking-wider text-orange-600 border-l border-slate-200 pl-3">Store Operations Panel</span>
             </div>
           </div>
 

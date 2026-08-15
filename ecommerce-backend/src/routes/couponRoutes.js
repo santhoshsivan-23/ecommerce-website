@@ -6,6 +6,8 @@ const controller = require('../controllers/couponController');
 
 const router = express.Router();
 
+router.get('/public', controller.listPublicCoupons);
+
 router.use(protect, restrictTo('admin'));
 
 router.get('/', controller.listCoupons);

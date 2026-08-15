@@ -10,12 +10,21 @@ export const ORDER_FLOW: OrderStatus[] = [
 ]
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Order placed',
+  pending: 'Order Placed',
   confirmed: 'Confirmed',
   processing: 'Processing',
   shipped: 'Shipped',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
+}
+
+export function orderStatusLabel(status: OrderStatus, orderSource?: string): string {
+  if (orderSource === 'seller') {
+    if (status === 'delivered') return 'Completed'
+    if (status === 'cancelled') return 'Cancelled'
+    return 'Order Placed'
+  }
+  return ORDER_STATUS_LABELS[status] || status
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

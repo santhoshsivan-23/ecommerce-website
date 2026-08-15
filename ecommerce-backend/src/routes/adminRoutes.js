@@ -4,11 +4,15 @@ const validate = require('../middleware/validate');
 const { protect, restrictTo } = require('../middleware/auth');
 const controller = require('../controllers/adminController');
 
-const router = express.Router();
+// Public shop settings reader (accessible by customer, seller, and admin)
+router.get('/settings', controller.getSettings);
 
 // Everything below is admin-only. Sellers have their own scoped panel under
 // /api/seller and can never reach these routes.
 router.use(protect, restrictTo('admin'));
+
+router.put('/settings', controller.updateSettings);
+router.patch('/settings', controller.updateSettings);
 
 /* Dashboard */
 router.get('/stats', controller.getDashboard);

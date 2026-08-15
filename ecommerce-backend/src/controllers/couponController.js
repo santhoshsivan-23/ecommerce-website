@@ -2,6 +2,16 @@ const { Coupon, Order } = require('../models');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
+// GET /api/coupons/public (customers & sellers)
+exports.listPublicCoupons = asyncHandler(async (req, res) => {
+  const coupons = await Coupon.findAll({
+    where: { isActive: true, isPublic: true },
+    attributes: ['id', 'code', 'description', 'discountType', 'discountValue', 'minOrderValue', 'maxDiscount'],
+    order: [['createdAt', 'DESC']],
+  });
+  res.json({ success: true, data: { coupons } });
+});
+
 // GET /api/coupons (admin)
 exports.listCoupons = asyncHandler(async (req, res) => {
   const coupons = await Coupon.findAll({ order: [['createdAt', 'DESC']] });
@@ -21,6 +31,7 @@ exports.createCoupon = asyncHandler(async (req, res) => {
     expiresAt,
     usageLimit,
     isActive,
+    isPublic,
   } = req.body;
 
   const existing = await Coupon.findOne({ where: { code: String(code).trim().toUpperCase() } });
@@ -41,6 +52,7 @@ exports.createCoupon = asyncHandler(async (req, res) => {
     expiresAt: expiresAt || null,
     usageLimit: usageLimit ? Number(usageLimit) : null,
     isActive: isActive === undefined ? true : Boolean(isActive),
+    isPublic: isPublic === undefined ? true : Boolean(isPublic),
   });
 
   res.status(201).json({ success: true, message: 'Coupon created', data: { coupon } });
@@ -61,6 +73,7 @@ exports.updateCoupon = asyncHandler(async (req, res) => {
     'expiresAt',
     'usageLimit',
     'isActive',
+    'isPublic',
   ];
 
   fields.forEach((field) => {

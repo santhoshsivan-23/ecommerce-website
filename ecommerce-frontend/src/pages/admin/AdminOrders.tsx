@@ -13,6 +13,7 @@ import {
   PAYMENT_STATUS_LABELS,
   formatDate,
   orderStatusClasses,
+  orderStatusLabel,
   paymentStatusClasses,
 } from '@/utils/orders'
 import type { OrderSource, OrderStatus, PaymentStatus } from '@/types'
@@ -350,7 +351,7 @@ export default function AdminOrders() {
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClasses(order.status)}`}
                     >
-                      {ORDER_STATUS_LABELS[order.status]}
+                      {orderStatusLabel(order.status, order.orderSource)}
                     </span>
                   </td>
 

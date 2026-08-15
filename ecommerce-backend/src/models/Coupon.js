@@ -45,6 +45,7 @@ const Coupon = sequelize.define(
     usageLimit: { type: DataTypes.INTEGER, allowNull: true },
     usedCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    isPublic: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   },
   {
     tableName: 'coupons',

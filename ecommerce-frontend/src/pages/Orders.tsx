@@ -8,10 +8,10 @@ import { PageLoader } from '@/components/ui/Spinner'
 import { BoxIcon, ChevronRightIcon } from '@/components/ui/Icons'
 import { formatPrice } from '@/utils/format'
 import {
-  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   formatDate,
   orderStatusClasses,
+  orderStatusLabel,
   paymentStatusClasses,
 } from '@/utils/orders'
 import type { OrderStatus } from '@/types'
@@ -108,7 +108,7 @@ export default function Orders() {
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClasses(order.status)}`}
                   >
-                    {ORDER_STATUS_LABELS[order.status]}
+                    {orderStatusLabel(order.status, order.orderSource)}
                   </span>
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${paymentStatusClasses(order.paymentStatus)}`}

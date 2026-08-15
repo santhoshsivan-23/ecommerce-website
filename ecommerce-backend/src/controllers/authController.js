@@ -72,20 +72,22 @@ exports.adminLogin = asyncHandler(async (req, res) => {
   res.json({ success: true, message: `Welcome back, Admin ${user.name}`, data: { user: publicUser(user), token } });
 });
 
-// POST /api/auth/seller/login (Dedicated Seller Authentication Flow)
+// POST /api/auth/seller/login (Dedicated Seller Authentication Flow: Email OR Mobile Number)
 exports.sellerLogin = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, emailOrPhone, password } = req.body;
+  const input = String(emailOrPhone || email || '').trim();
 
-  const user = await User.scope('withPassword').findOne({
-    where: { email: String(email).toLowerCase() },
-  });
+  if (!input) throw ApiError.badRequest('Email address or mobile number is required');
+
+  const isPhone = /^[0-9+\-\s()]{7,20}$/.test(input);
+  const where = isPhone
+    ? { phone: input, role: 'seller' }
+    : { [Op.or]: [{ email: input.toLowerCase() }, { phone: input }], role: 'seller' };
+
+  const user = await User.scope('withPassword').findOne({ where });
 
   if (!user || !(await user.comparePassword(password))) {
-    throw ApiError.unauthorized('Invalid email or password');
-  }
-
-  if (user.role !== 'seller') {
-    throw ApiError.forbidden('Access denied. This login portal is restricted to Seller worker accounts.');
+    throw ApiError.unauthorized('Invalid email/mobile or password');
   }
 
   if (!user.isActive) {

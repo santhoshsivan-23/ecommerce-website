@@ -28,6 +28,7 @@ import { resetCart } from '@/features/cart/cartSlice'
 import { resetWishlist } from '@/features/wishlist/wishlistSlice'
 import { resetAddresses } from '@/features/address/addressSlice'
 import { notify } from '@/utils/notify'
+import { ShopNameLogo } from '@/components/ui/ShopNameLogo'
 
 const NAV_GROUPS = [
   {
@@ -196,8 +197,9 @@ export default function AdminLayout() {
             >
               <FiMenu className="h-5 w-5" />
             </button>
-            <div className="hidden sm:block">
-              <span className="text-xs font-bold uppercase tracking-wider text-orange-600">Admin Control Center</span>
+            <div className="flex items-center gap-3">
+              <ShopNameLogo className="text-base" />
+              <span className="text-xs font-bold uppercase tracking-wider text-orange-600 border-l border-slate-200 pl-3">Admin Control Center</span>
             </div>
           </div>
 

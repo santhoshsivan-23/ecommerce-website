@@ -8,10 +8,10 @@ import { PageLoader } from '@/components/ui/Spinner'
 import { PlusIcon } from '@/components/ui/Icons'
 import { formatPrice } from '@/utils/format'
 import {
-  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   formatDateTime,
   orderStatusClasses,
+  orderStatusLabel,
   paymentStatusClasses,
 } from '@/utils/orders'
 import type { OrderStatus, PaymentStatus } from '@/types'
@@ -185,7 +185,7 @@ export default function SellerOrders() {
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-semibold ${orderStatusClasses(order.status)}`}
                     >
-                      {ORDER_STATUS_LABELS[order.status]}
+                      {orderStatusLabel(order.status, order.orderSource)}
                     </span>
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-semibold ${paymentStatusClasses(order.paymentStatus)}`}
@@ -209,14 +209,40 @@ export default function SellerOrders() {
                     {order.paymentMethodName}
                   </p>
 
-                  <ul className="mt-2 text-sm text-slate-600">
+                  <div className="mt-3 space-y-2">
                     {order.items.map((item) => (
-                      <li key={item.id}>
-                        {item.productName}
-                        {item.variantLabel ? ` (${item.variantLabel})` : ''} × {item.quantity}
-                      </li>
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
+                            {item.image ? (
+                              <img src={item.image} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="grid h-full w-full place-items-center text-xs font-bold text-slate-400">
+                                {item.productName.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-zinc-900">{item.productName}</p>
+                            {item.variantLabel ? (
+                              <p className="text-[11px] text-slate-500">{item.variantLabel}</p>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="w-16 text-center shrink-0">
+                          <span className="text-xs font-semibold text-slate-600">Qty {item.quantity}</span>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-bold text-orange-600">{formatPrice(item.lineTotal)}</p>
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
                 <div className="text-right">

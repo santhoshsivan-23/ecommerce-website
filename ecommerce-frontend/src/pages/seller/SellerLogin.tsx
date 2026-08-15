@@ -23,8 +23,7 @@ export default function SellerLogin() {
 
   const validate = () => {
     const next: Record<string, string> = {}
-    if (!form.email.trim()) next.email = 'Email address is required'
-    else if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = 'Enter a valid email address'
+    if (!form.email.trim()) next.email = 'Email address or mobile number is required'
     if (!form.password) next.password = 'Password is required'
     setErrors(next)
     return Object.keys(next).length === 0
@@ -34,7 +33,7 @@ export default function SellerLogin() {
     event.preventDefault()
     if (!validate()) return
 
-    const result = await dispatch(sellerLogin(form))
+    const result = await dispatch(sellerLogin({ email: form.email.trim(), password: form.password }))
     if (sellerLogin.fulfilled.match(result)) {
       notify.success(`Welcome back, ${result.payload.user.name}`)
       navigate(redirectTo.startsWith('/seller') ? redirectTo : '/seller', { replace: true })
@@ -70,15 +69,14 @@ export default function SellerLogin() {
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-8 shadow-xl border border-slate-100" noValidate>
         <div>
-          <label className="label" htmlFor="email">Seller Email Address</label>
+          <label className="label" htmlFor="email">Email Address or Mobile Number</label>
           <input
             id="email"
-            type="email"
+            type="text"
             className="input-field"
             value={form.email}
             onChange={(event) => setForm({ ...form, email: event.target.value })}
-            autoComplete="email"
-            placeholder="seller@shop.com"
+            placeholder="seller@shop.com or 9876543210"
           />
           {errors.email ? <p className="field-error">{errors.email}</p> : null}
         </div>

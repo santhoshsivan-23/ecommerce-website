@@ -240,6 +240,7 @@ export interface Coupon {
   usageLimit: number | null
   usedCount: number
   isActive: boolean
+  isPublic?: boolean
 }
 
 export type OrderStatus =

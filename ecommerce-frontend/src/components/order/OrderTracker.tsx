@@ -5,29 +5,46 @@ interface OrderTrackerProps {
   order: Order
 }
 
-/** Order placed → Confirmed → Processing → Shipped → Delivered. */
+const SELLER_STATUS_LABELS: Record<string, string> = {
+  pending: 'Order Placed',
+  delivered: 'Completed',
+}
+
+/**
+ * Renders the order timeline based on order source:
+ * Seller-created direct order: Order Placed → Completed
+ * Customer storefront order: Order Placed → Confirmed → Processing → Shipped → Delivered
+ */
 export function OrderTracker({ order }: OrderTrackerProps) {
   if (order.status === 'cancelled') {
     return (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
-        <p className="font-semibold text-rose-700">Order cancelled</p>
-        <p className="mt-1 text-sm text-rose-600">
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+        <p className="font-bold text-rose-700">Order Cancelled</p>
+        <p className="mt-1 text-xs text-rose-600">
           {order.cancelReason || 'This order was cancelled.'}
         </p>
-        <p className="mt-1 text-xs text-rose-500">{formatDateTime(order.cancelledAt)}</p>
+        <p className="mt-1 text-[11px] text-rose-500">{formatDateTime(order.cancelledAt)}</p>
       </div>
     )
   }
 
-  const currentIndex = ORDER_FLOW.indexOf(order.status)
+  const isSeller = order.orderSource === 'seller'
+  const flow = isSeller ? ['pending', 'delivered'] : ORDER_FLOW
+  const labels: Record<string, string> = isSeller ? SELLER_STATUS_LABELS : ORDER_STATUS_LABELS
 
-  // The timeline reads its timestamps from the recorded history.
-  const reachedAt = (status: string) =>
-    order.statusHistory?.find((event) => event.status === status)?.createdAt ?? null
+  const currentIndex = isSeller
+    ? order.status === 'delivered' ? 1 : 0
+    : ORDER_FLOW.indexOf(order.status)
+
+  const reachedAt = (status: string) => {
+    if (status === 'pending') return order.placedAt || null
+    if (status === 'delivered') return order.deliveredAt || order.statusHistory?.find((e) => e.status === 'delivered')?.createdAt || null
+    return order.statusHistory?.find((event) => event.status === status)?.createdAt ?? null
+  }
 
   return (
     <ol className="flex flex-col gap-0 sm:flex-row sm:items-start">
-      {ORDER_FLOW.map((status, index) => {
+      {flow.map((status, index) => {
         const done = index <= currentIndex
         const isCurrent = index === currentIndex
         const timestamp = reachedAt(status)
@@ -38,7 +55,7 @@ export function OrderTracker({ order }: OrderTrackerProps) {
               <span
                 className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-xs font-bold ${
                   done
-                    ? 'border-brand-600 bg-brand-600 text-white'
+                    ? 'border-orange-600 bg-orange-600 text-white shadow-xs'
                     : 'border-slate-300 bg-white text-slate-400'
                 }`}
                 aria-hidden="true"
@@ -46,10 +63,10 @@ export function OrderTracker({ order }: OrderTrackerProps) {
                 {done ? '✓' : index + 1}
               </span>
 
-              {index < ORDER_FLOW.length - 1 ? (
+              {index < flow.length - 1 ? (
                 <span
                   className={`w-0.5 flex-1 sm:h-0.5 sm:w-full ${
-                    index < currentIndex ? 'bg-brand-600' : 'bg-slate-200'
+                    index < currentIndex ? 'bg-orange-600' : 'bg-slate-200'
                   }`}
                 />
               ) : null}
@@ -57,14 +74,14 @@ export function OrderTracker({ order }: OrderTrackerProps) {
 
             <div className="pb-6 sm:pb-0 sm:pr-4">
               <p
-                className={`text-sm font-medium ${
-                  isCurrent ? 'text-brand-700' : done ? 'text-slate-800' : 'text-slate-400'
+                className={`text-xs font-bold ${
+                  isCurrent ? 'text-orange-600' : done ? 'text-zinc-900' : 'text-slate-400'
                 }`}
               >
-                {ORDER_STATUS_LABELS[status]}
+                {labels[status] || ORDER_STATUS_LABELS[status as keyof typeof ORDER_STATUS_LABELS] || status}
               </p>
               {timestamp ? (
-                <p className="text-xs text-slate-400">{formatDateTime(timestamp)}</p>
+                <p className="text-[11px] text-slate-400 font-medium">{formatDateTime(timestamp)}</p>
               ) : null}
             </div>
           </li>
