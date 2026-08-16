@@ -60,6 +60,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/categories', label: 'Categories', icon: FiFolder, end: false },
       { to: '/admin/brands', label: 'Brands', icon: FiTag, end: false },
+      { to: '/admin/variants', label: 'Variants', icon: FiLayers, end: false },
       { to: '/admin/attributes', label: 'Attributes', icon: FiList, end: false },
     ],
   },

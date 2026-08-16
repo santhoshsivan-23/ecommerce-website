@@ -52,6 +52,7 @@ import AdminAttributes from '@/pages/admin/AdminAttributes'
 import AdminReports from '@/pages/admin/AdminReports'
 import AdminAnalytics from '@/pages/admin/AdminAnalytics'
 import AdminTaxSettings from '@/pages/admin/AdminTaxSettings'
+import AdminVariants from '@/pages/admin/AdminVariants'
 
 import SellerLayout from '@/pages/seller/SellerLayout'
 import SellerDashboard from '@/pages/seller/SellerDashboard'
@@ -161,6 +162,7 @@ export default function App() {
               path="products/:id/edit"
               element={<AdminProductForm listPath="/seller/products" />}
             />
+            <Route path="variants" element={<AdminVariants isSeller />} />
             <Route path="inventory" element={<SellerInventory />} />
           </Route>
         </Route>
@@ -178,6 +180,7 @@ export default function App() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/new" element={<AdminProductForm />} />
             <Route path="products/:id/edit" element={<AdminProductForm />} />
+            <Route path="variants" element={<AdminVariants />} />
             <Route path="inventory" element={<AdminInventory />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="brands" element={<AdminBrands />} />

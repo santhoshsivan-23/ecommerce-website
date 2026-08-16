@@ -11,6 +11,7 @@ import sellerReducer from '@/features/seller/sellerSlice'
 import adminReducer from '@/features/admin/adminSlice'
 import reportReducer from '@/features/reports/reportSlice'
 import taxSettingsReducer from '@/features/admin/taxSettingsSlice'
+import variationReducer from '@/features/variants/variationSlice'
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     admin: adminReducer,
     reports: reportReducer,
     taxSettings: taxSettingsReducer,
+    variations: variationReducer,
   },
 })
 

@@ -4,6 +4,7 @@ import { deleteCategory, fetchCategories, saveCategory } from '@/features/catalo
 import { PageLoader, Spinner } from '@/components/ui/Spinner'
 import { PencilIcon, PlusIcon, TrashIcon } from '@/components/ui/Icons'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 import type { Category } from '@/types'
 
 interface FormState {
@@ -161,13 +162,12 @@ export default function AdminCategories() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="label" htmlFor="cat-image">Image URL</label>
-              <input
-                id="cat-image"
-                className="input-field"
+              <ImageUpload
+                mode="single"
+                label="Category Image"
+                hint="Upload image from device (PNG, JPG, WEBP)"
                 value={form.image}
-                onChange={(event) => setForm({ ...form, image: event.target.value })}
-                placeholder="https://example.com/category.jpg"
+                onChange={(url) => setForm({ ...form, image: url })}
               />
             </div>
 

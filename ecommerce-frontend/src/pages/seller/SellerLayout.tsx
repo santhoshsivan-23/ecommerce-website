@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { to: '/seller/orders', label: 'Orders', icon: FiShoppingBag, end: true },
   { to: '/seller/orders/new', label: 'Create Order', icon: FiPlusCircle, end: false },
   { to: '/seller/products', label: 'Products', icon: FiPackage, end: false },
+  { to: '/seller/variants', label: 'Variants', icon: FiLayers, end: false },
   { to: '/seller/inventory', label: 'Inventory', icon: FiLayers, end: false },
 ]
 

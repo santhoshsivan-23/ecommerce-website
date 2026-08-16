@@ -20,6 +20,7 @@ const {
   OrderStatusHistory,
   StockMovement,
   Setting,
+  Variation,
 } = require('../models');
 const { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE, round2 } = require('../utils/pricing');
 
@@ -612,6 +613,18 @@ async function seed() {
     { updateOnDuplicate: ['value'] }
   );
   console.log('[seed] initialized default shop and tax settings');
+
+  await Variation.bulkCreate(
+    [
+      { name: 'Size', values: ['Small', 'Medium', 'Large', 'XL', 'XXL'] },
+      { name: 'Color', values: ['Red', 'Blue', 'Green', 'Black', 'White', 'Grey', 'Yellow'] },
+      { name: 'Weight', values: ['250g', '500g', '1kg', '2kg', '5kg'] },
+      { name: 'Material', values: ['Cotton', 'Leather', 'Polyester', 'Aluminium', 'Denim'] },
+      { name: 'Storage', values: ['64GB', '128GB', '256GB', '512GB', '1TB'] },
+    ],
+    { updateOnDuplicate: ['values'] }
+  );
+  console.log('[seed] initialized 5 default variation templates');
 
   const orderStats = await seedOrderHistory({ customers, sellers, catalogue });
   console.log(

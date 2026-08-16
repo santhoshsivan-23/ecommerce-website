@@ -4,6 +4,7 @@ import { deleteBrand, fetchBrands, saveBrand } from '@/features/catalog/category
 import { PageLoader, Spinner } from '@/components/ui/Spinner'
 import { PencilIcon, PlusIcon, TrashIcon } from '@/components/ui/Icons'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 import type { Brand } from '@/types'
 
 interface FormState {
@@ -120,13 +121,12 @@ export default function AdminBrands() {
             </div>
 
             <div>
-              <label className="label" htmlFor="brand-logo">Logo URL</label>
-              <input
-                id="brand-logo"
-                className="input-field"
+              <ImageUpload
+                mode="single"
+                label="Brand Logo"
+                hint="Upload logo from device (PNG, JPG, WEBP, SVG)"
                 value={form.logo}
-                onChange={(event) => setForm({ ...form, logo: event.target.value })}
-                placeholder="https://example.com/logo.png"
+                onChange={(url) => setForm({ ...form, logo: url })}
               />
             </div>
 
