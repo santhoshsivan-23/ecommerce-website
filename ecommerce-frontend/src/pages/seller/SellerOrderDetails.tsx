@@ -201,7 +201,7 @@ export default function SellerOrderDetails() {
                 </div>
               ) : null}
               {(() => {
-                const tax = computeTax(order.total, order.orderSource, taxSettings)
+                const tax = computeTax(order.total, order.orderSource || 'seller', taxSettings)
                 return tax > 0 ? (
                   <div className="flex justify-between">
                     <dt className="text-slate-500">Tax ({taxSettings.rate}%)</dt>

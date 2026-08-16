@@ -30,6 +30,7 @@ import {
 import { formatPrice, primaryImage, resolvePricing, resolveStock } from '@/utils/format'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
 import type { DraftLine, Product, ProductVariant, SellerCustomer } from '@/types'
+import { selectTaxSettings, computeTax } from '@/features/admin/taxSettingsSlice'
 
 const PAGE_SIZE = 40
 
@@ -37,6 +38,7 @@ export default function SellerCreateOrder() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
+  const taxSettings = useAppSelector(selectTaxSettings)
   const { customers, draftQuote } = useAppSelector((state) => state.seller)
   const { items: products, pagination: productPagination, listStatus } = useAppSelector(
     (state) => state.products
@@ -821,6 +823,16 @@ export default function SellerCreateOrder() {
                           <span className="font-semibold">− {formatPrice(draftQuote!.summary.couponDiscount)}</span>
                         </div>
                       ) : null}
+                      {(() => {
+                        const total = draftQuote?.summary.total ?? lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
+                        const tax = computeTax(total, 'seller', taxSettings)
+                        return tax > 0 ? (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Tax ({taxSettings.rate}%)</span>
+                            <span className="font-semibold text-slate-800">{formatPrice(tax)}</span>
+                          </div>
+                        ) : null
+                      })()}
                       <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-extrabold text-zinc-900">
                         <span>Total Payable</span>
                         <span className="text-orange-600">
@@ -921,6 +933,16 @@ export default function SellerCreateOrder() {
                     <span className="font-semibold">− {formatPrice(draftQuote.summary.couponDiscount)}</span>
                   </div>
                 ) : null}
+                {(() => {
+                  const total = draftQuote?.summary.total ?? 0
+                  const tax = computeTax(total, 'seller', taxSettings)
+                  return tax > 0 ? (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Tax ({taxSettings.rate}%)</span>
+                      <span className="font-semibold text-slate-800">{formatPrice(tax)}</span>
+                    </div>
+                  ) : null
+                })()}
                 <div className="flex justify-between text-slate-600">
                   <span>Delivery Charge</span>
                   <span className="font-semibold text-zinc-900">

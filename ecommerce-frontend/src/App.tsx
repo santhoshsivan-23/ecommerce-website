@@ -7,6 +7,7 @@ import { loadSession, sessionExpired } from '@/features/auth/authSlice'
 import { fetchCategories } from '@/features/catalog/categorySlice'
 import { fetchCart, resetCart } from '@/features/cart/cartSlice'
 import { fetchWishlist, resetWishlist } from '@/features/wishlist/wishlistSlice'
+import { syncTaxSettings } from '@/features/admin/taxSettingsSlice'
 import { setUnauthorizedHandler } from '@/api/client'
 import { notify } from '@/utils/notify'
 
@@ -77,6 +78,14 @@ export default function App() {
     dispatch(loadSession())
     dispatch(fetchCategories())
 
+    // Keep tax settings synchronized across multiple browser tabs
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'admin_tax_settings') {
+        dispatch(syncTaxSettings())
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+
     // A token rejected mid-session should clear local state, not leave a ghost login.
     setUnauthorizedHandler(() => {
       dispatch(sessionExpired())
@@ -84,6 +93,10 @@ export default function App() {
       dispatch(resetWishlist())
       notify.warning('Your session has expired. Please log in again.')
     })
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [dispatch])
 
   // Cart and wishlist only exist for customers, so load them once one signs in.
