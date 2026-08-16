@@ -80,7 +80,7 @@ export default function App() {
 
     // Keep tax settings synchronized across multiple browser tabs
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'admin_tax_settings') {
+      if (e.key === 'admin_tax_settings' || e.key === 'tax_rate' || e.key === 'app_settings') {
         dispatch(syncTaxSettings())
       }
     }

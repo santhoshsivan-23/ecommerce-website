@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { register } from '@/features/auth/authSlice'
+import { fetchTaxSettings } from '@/features/admin/taxSettingsSlice'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -51,6 +52,7 @@ export default function Register() {
     )
 
     if (register.fulfilled.match(result)) {
+      dispatch(fetchTaxSettings())
       notify.success('Your account is ready. Happy shopping!')
       navigate('/', { replace: true })
     } else {

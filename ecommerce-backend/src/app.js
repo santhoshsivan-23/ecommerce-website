@@ -54,6 +54,8 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'API is running', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/settings', require('./controllers/adminController').getSettings);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);

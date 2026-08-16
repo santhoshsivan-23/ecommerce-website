@@ -19,6 +19,7 @@ const {
   OrderItem,
   OrderStatusHistory,
   StockMovement,
+  Setting,
 } = require('../models');
 const { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE, round2 } = require('../utils/pricing');
 
@@ -599,6 +600,18 @@ async function seed() {
     },
   ]);
   console.log('[seed] created 3 coupons');
+
+  await Setting.bulkCreate(
+    [
+      { key: 'shopFirstName', value: 'Fresh' },
+      { key: 'shopSecondName', value: 'Mart' },
+      { key: 'taxRate', value: '18' },
+      { key: 'taxEnabled', value: 'true' },
+      { key: 'taxAppliesTo', value: 'both' },
+    ],
+    { updateOnDuplicate: ['value'] }
+  );
+  console.log('[seed] initialized default shop and tax settings');
 
   const orderStats = await seedOrderHistory({ customers, sellers, catalogue });
   console.log(

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { adminLogin } from '@/features/auth/authSlice'
+import { fetchTaxSettings } from '@/features/admin/taxSettingsSlice'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
 import { Spinner } from '@/components/ui/Spinner'
 import { FiMail, FiPhone } from 'react-icons/fi'
@@ -54,6 +55,8 @@ export default function AdminLogin() {
 
     const result = await dispatch(adminLogin(payload))
     if (adminLogin.fulfilled.match(result)) {
+      // Call Settings API immediately after admin login, get latest tax rate, and store in local storage
+      dispatch(fetchTaxSettings())
       notify.success(`Welcome back, Admin ${result.payload.user.name}`)
       navigate(redirectTo.startsWith('/admin') ? redirectTo : '/admin', { replace: true })
     } else {

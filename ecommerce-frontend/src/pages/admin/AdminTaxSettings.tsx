@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
-import { updateTaxSettings, selectTaxSettings } from '@/features/admin/taxSettingsSlice'
+import { fetchTaxSettings, saveTaxSettings, selectTaxSettings } from '@/features/admin/taxSettingsSlice'
 import type { TaxAppliesTo } from '@/features/admin/taxSettingsSlice'
-import { notify } from '@/utils/notify'
+import { notify, notifyApiError } from '@/utils/notify'
 import { formatPrice } from '@/utils/format'
 import { FiPercent, FiSave, FiInfo, FiCheckCircle } from 'react-icons/fi'
+import { Spinner } from '@/components/ui/Spinner'
 
 const APPLIES_TO_OPTIONS: { value: TaxAppliesTo; label: string; description: string }[] = [
   {
@@ -29,18 +30,30 @@ export default function AdminTaxSettings() {
   const saved = useAppSelector(selectTaxSettings)
 
   const [form, setForm] = useState({ ...saved })
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    dispatch(fetchTaxSettings())
+  }, [dispatch])
 
   useEffect(() => {
     setForm({ ...saved })
   }, [saved])
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true)
     const payload = {
       ...form,
       enabled: form.enabled ?? true,
     }
-    dispatch(updateTaxSettings(payload))
-    notify.success('Tax settings saved and applied globally')
+    const result = await dispatch(saveTaxSettings(payload))
+    setIsSaving(false)
+
+    if (saveTaxSettings.fulfilled.match(result)) {
+      notify.success('Tax settings saved and applied globally')
+    } else {
+      notifyApiError(result.payload, 'Failed to save tax settings')
+    }
   }
 
   // Example preview using a ₹1000 order
@@ -183,9 +196,16 @@ export default function AdminTaxSettings() {
           type="button"
           className="btn-primary gap-2 text-sm px-6 py-3"
           onClick={handleSave}
+          disabled={isSaving}
         >
-          <FiSave className="h-4 w-4" />
-          Save Tax Settings
+          {isSaving ? (
+            <Spinner className="h-4 w-4 text-white" label="Saving…" />
+          ) : (
+            <>
+              <FiSave className="h-4 w-4" />
+              Save Tax Settings
+            </>
+          )}
         </button>
       </div>
     </div>

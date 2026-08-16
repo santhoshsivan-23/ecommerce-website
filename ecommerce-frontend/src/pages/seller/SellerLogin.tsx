@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { sellerLogin } from '@/features/auth/authSlice'
+import { fetchTaxSettings } from '@/features/admin/taxSettingsSlice'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -35,6 +36,8 @@ export default function SellerLogin() {
 
     const result = await dispatch(sellerLogin({ email: form.email.trim(), password: form.password }))
     if (sellerLogin.fulfilled.match(result)) {
+      // Call Settings API immediately after seller login, get latest tax rate, and store in local storage
+      dispatch(fetchTaxSettings())
       notify.success(`Welcome back, ${result.payload.user.name}`)
       navigate(redirectTo.startsWith('/seller') ? redirectTo : '/seller', { replace: true })
     } else {

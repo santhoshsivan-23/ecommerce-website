@@ -28,18 +28,40 @@ exports.getSettings = asyncHandler(async (req, res) => {
   const rows = await Setting.findAll();
   const settingsMap = rows.reduce((acc, r) => ({ ...acc, [r.key]: r.value }), {});
 
+  const taxRate = settingsMap.taxRate !== undefined ? Number(settingsMap.taxRate) : 18;
+  const taxEnabled =
+    settingsMap.taxEnabled !== undefined
+      ? settingsMap.taxEnabled === 'true' || settingsMap.taxEnabled === true
+      : true;
+  const taxAppliesTo = settingsMap.taxAppliesTo || 'both';
+
   res.json({
     success: true,
     data: {
       shopFirstName: settingsMap.shopFirstName || 'Fresh',
       shopSecondName: settingsMap.shopSecondName || 'Mart',
+      taxRate,
+      taxEnabled,
+      taxAppliesTo,
+      rate: taxRate,
+      enabled: taxEnabled,
+      appliesTo: taxAppliesTo,
     },
   });
 });
 
 // PUT /api/admin/settings (admin setting writer)
 exports.updateSettings = asyncHandler(async (req, res) => {
-  const { shopFirstName, shopSecondName } = req.body;
+  const {
+    shopFirstName,
+    shopSecondName,
+    taxRate,
+    taxEnabled,
+    taxAppliesTo,
+    rate,
+    enabled,
+    appliesTo,
+  } = req.body;
 
   if (shopFirstName !== undefined) {
     await Setting.upsert({ key: 'shopFirstName', value: String(shopFirstName).trim() });
@@ -48,15 +70,43 @@ exports.updateSettings = asyncHandler(async (req, res) => {
     await Setting.upsert({ key: 'shopSecondName', value: String(shopSecondName).trim() });
   }
 
+  const finalRate = taxRate !== undefined ? taxRate : rate;
+  if (finalRate !== undefined) {
+    await Setting.upsert({ key: 'taxRate', value: String(finalRate) });
+  }
+
+  const finalEnabled = taxEnabled !== undefined ? taxEnabled : enabled;
+  if (finalEnabled !== undefined) {
+    await Setting.upsert({ key: 'taxEnabled', value: String(finalEnabled) });
+  }
+
+  const finalAppliesTo = taxAppliesTo !== undefined ? taxAppliesTo : appliesTo;
+  if (finalAppliesTo !== undefined) {
+    await Setting.upsert({ key: 'taxAppliesTo', value: String(finalAppliesTo) });
+  }
+
   const rows = await Setting.findAll();
   const settingsMap = rows.reduce((acc, r) => ({ ...acc, [r.key]: r.value }), {});
 
+  const updatedTaxRate = settingsMap.taxRate !== undefined ? Number(settingsMap.taxRate) : 18;
+  const updatedTaxEnabled =
+    settingsMap.taxEnabled !== undefined
+      ? settingsMap.taxEnabled === 'true' || settingsMap.taxEnabled === true
+      : true;
+  const updatedTaxAppliesTo = settingsMap.taxAppliesTo || 'both';
+
   res.json({
     success: true,
-    message: 'Shop Name settings updated successfully',
+    message: 'Settings updated successfully',
     data: {
       shopFirstName: settingsMap.shopFirstName || 'Fresh',
       shopSecondName: settingsMap.shopSecondName || 'Mart',
+      taxRate: updatedTaxRate,
+      taxEnabled: updatedTaxEnabled,
+      taxAppliesTo: updatedTaxAppliesTo,
+      rate: updatedTaxRate,
+      enabled: updatedTaxEnabled,
+      appliesTo: updatedTaxAppliesTo,
     },
   });
 });

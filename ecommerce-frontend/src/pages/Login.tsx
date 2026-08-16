@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { login } from '@/features/auth/authSlice'
+import { fetchTaxSettings } from '@/features/admin/taxSettingsSlice'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -36,6 +37,8 @@ export default function Login() {
 
     const result = await dispatch(login(form))
     if (login.fulfilled.match(result)) {
+      // Call Settings API immediately after login, get latest tax rate, and store in local storage
+      dispatch(fetchTaxSettings())
       notify.success(`Welcome back, ${result.payload.user.name}`)
       // Staff land in their own workspace; customers return to where they came from.
       const role = result.payload.user.role
