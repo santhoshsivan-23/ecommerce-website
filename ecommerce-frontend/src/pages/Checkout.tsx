@@ -302,6 +302,7 @@ export default function Checkout() {
           <OrderSummaryCard
             summary={checkout.summary}
             couponCode={checkout.coupon?.code}
+            orderSource="customer"
             title="Order total"
           >
             <button

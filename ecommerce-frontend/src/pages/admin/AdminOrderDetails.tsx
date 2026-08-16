@@ -20,6 +20,7 @@ import {
 } from '@/utils/orders'
 import { notify, notifyApiError } from '@/utils/notify'
 import type { OrderStatus, PaymentStatus } from '@/types'
+import { selectTaxSettings, computeTax } from '@/features/admin/taxSettingsSlice'
 
 const PAYMENT_STATUSES: PaymentStatus[] = ['pending', 'paid', 'failed', 'refunded']
 
@@ -28,6 +29,7 @@ export default function AdminOrderDetails() {
   const dispatch = useAppDispatch()
 
   const { current: order, detailStatus, error } = useAppSelector((state) => state.orders)
+  const taxSettings = useAppSelector(selectTaxSettings)
 
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -246,6 +248,15 @@ export default function AdminOrderDetails() {
                 <dd className="font-medium text-emerald-600">− {formatPrice(order.couponDiscount)}</dd>
               </div>
             ) : null}
+            {(() => {
+              const tax = computeTax(order.total, order.orderSource, taxSettings)
+              return tax > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Tax ({taxSettings.rate}%)</dt>
+                  <dd className="font-medium text-slate-700">{formatPrice(tax)}</dd>
+                </div>
+              ) : null
+            })()}
             <div className="flex justify-between">
               <dt className="text-slate-500">Delivery charge</dt>
               <dd className="font-medium text-slate-800">{formatPrice(order.deliveryCharge)}</dd>

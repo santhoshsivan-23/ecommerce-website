@@ -50,6 +50,7 @@ import AdminInventory from '@/pages/admin/AdminInventory'
 import AdminAttributes from '@/pages/admin/AdminAttributes'
 import AdminReports from '@/pages/admin/AdminReports'
 import AdminAnalytics from '@/pages/admin/AdminAnalytics'
+import AdminTaxSettings from '@/pages/admin/AdminTaxSettings'
 
 import SellerLayout from '@/pages/seller/SellerLayout'
 import SellerDashboard from '@/pages/seller/SellerDashboard'
@@ -172,6 +173,7 @@ export default function App() {
             <Route path="orders/:id" element={<AdminOrderDetails />} />
             <Route path="payment-methods" element={<AdminPaymentMethods />} />
             <Route path="coupons" element={<AdminCoupons />} />
+            <Route path="tax-settings" element={<AdminTaxSettings />} />
           </Route>
         </Route>
       </Routes>

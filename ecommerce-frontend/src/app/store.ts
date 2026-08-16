@@ -10,6 +10,7 @@ import paymentReducer from '@/features/payments/paymentSlice'
 import sellerReducer from '@/features/seller/sellerSlice'
 import adminReducer from '@/features/admin/adminSlice'
 import reportReducer from '@/features/reports/reportSlice'
+import taxSettingsReducer from '@/features/admin/taxSettingsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +25,7 @@ export const store = configureStore({
     seller: sellerReducer,
     admin: adminReducer,
     reports: reportReducer,
+    taxSettings: taxSettingsReducer,
   },
 })
 

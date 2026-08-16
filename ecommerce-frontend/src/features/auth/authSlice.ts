@@ -74,7 +74,7 @@ export const login = createAsyncThunk<
 
 export const adminLogin = createAsyncThunk<
   { user: User; token: string },
-  { email: string; password: string },
+  { email?: string; phone?: string; password: string },
   { rejectValue: ApiFailure }
 >('auth/adminLogin', async (payload, { rejectWithValue }) => {
   try {

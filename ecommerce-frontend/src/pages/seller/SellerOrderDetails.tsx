@@ -20,11 +20,13 @@ import {
 } from '@/utils/orders'
 import { notify, notifyApiError } from '@/utils/notify'
 import type { OrderStatus } from '@/types'
+import { selectTaxSettings, computeTax } from '@/features/admin/taxSettingsSlice'
 
 export default function SellerOrderDetails() {
   const { id } = useParams<{ id: string }>()
   const dispatch = useAppDispatch()
   const { currentOrder: order, currentOrderStatus } = useAppSelector((state) => state.seller)
+  const taxSettings = useAppSelector(selectTaxSettings)
 
   const [updating, setUpdating] = useState<OrderStatus | null>(null)
   const [note, setNote] = useState('')
@@ -179,16 +181,55 @@ export default function SellerOrderDetails() {
             ))}
           </ul>
 
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-            <span className="text-sm font-medium text-slate-600">My subtotal</span>
-            <span className="font-bold text-slate-900">{formatPrice(order.sellerSubtotal)}</span>
+          <div className="border-t border-slate-100">
+            <h3 className="px-4 py-3 font-semibold text-slate-900">Payment Breakdown</h3>
+            <dl className="space-y-1.5 px-4 pb-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-slate-500">Subtotal</dt>
+                <dd className="font-medium text-slate-800">{formatPrice(order.subtotal)}</dd>
+              </div>
+              {order.productDiscount > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Product Discount</dt>
+                  <dd className="font-medium text-emerald-600">− {formatPrice(order.productDiscount)}</dd>
+                </div>
+              ) : null}
+              {order.couponDiscount > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Coupon{order.couponCode ? ` (${order.couponCode})` : ''}</dt>
+                  <dd className="font-medium text-emerald-600">− {formatPrice(order.couponDiscount)}</dd>
+                </div>
+              ) : null}
+              {(() => {
+                const tax = computeTax(order.total, order.orderSource, taxSettings)
+                return tax > 0 ? (
+                  <div className="flex justify-between">
+                    <dt className="text-slate-500">Tax ({taxSettings.rate}%)</dt>
+                    <dd className="font-medium text-slate-700">{formatPrice(tax)}</dd>
+                  </div>
+                ) : null
+              })()}
+              <div className="flex justify-between">
+                <dt className="text-slate-500">Delivery</dt>
+                <dd className="font-medium text-slate-800">
+                  {order.deliveryCharge === 0 ? (
+                    <span className="text-emerald-600">Free</span>
+                  ) : (
+                    formatPrice(order.deliveryCharge)
+                  )}
+                </dd>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-sm">
+                <dt className="font-bold text-slate-900">Total</dt>
+                <dd className="font-bold text-slate-900">{formatPrice(order.total)}</dd>
+              </div>
+              {!order.isSoleSeller ? (
+                <p className="text-xs text-slate-400 pt-1">
+                  Includes other sellers' items. Your items subtotal: {formatPrice(order.sellerSubtotal)}
+                </p>
+              ) : null}
+            </dl>
           </div>
-
-          {!order.isSoleSeller ? (
-            <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
-              The full order total is {formatPrice(order.total)}, including other sellers’ items.
-            </p>
-          ) : null}
         </div>
 
         <div className="flex flex-col gap-5">

@@ -1,9 +1,13 @@
+import { useAppSelector } from '@/app/hooks'
+import { selectTaxSettings, computeTax } from '@/features/admin/taxSettingsSlice'
 import { formatPrice } from '@/utils/format'
-import type { CartSummary } from '@/types'
+import type { CartSummary, OrderSource } from '@/types'
 
 interface OrderSummaryCardProps {
   summary: CartSummary
   couponCode?: string | null
+  /** When provided, a tax row is rendered if the Admin Tax Settings apply to this source. */
+  orderSource?: OrderSource
   title?: string
   children?: React.ReactNode
 }
@@ -11,14 +15,21 @@ interface OrderSummaryCardProps {
 /**
  * The one place order money is rendered:
  * subtotal - discounts + delivery = total.
+ * Tax is shown as an informational row (back-calculated from the total) when configured.
  */
 export function OrderSummaryCard({
   summary,
   couponCode,
+  orderSource,
   title = 'Order summary',
   children,
 }: OrderSummaryCardProps) {
+  const taxSettings = useAppSelector(selectTaxSettings)
   const amountToFreeDelivery = summary.freeDeliveryThreshold - summary.itemsTotal
+
+  const taxAmount = orderSource
+    ? computeTax(summary.total, orderSource, taxSettings)
+    : 0
 
   return (
     <div className="card p-5">
@@ -62,6 +73,13 @@ export function OrderSummaryCard({
             )}
           </dd>
         </div>
+
+        {taxAmount > 0 ? (
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Tax ({taxSettings.rate}% incl.)</dt>
+            <dd className="font-medium text-slate-700">{formatPrice(taxAmount)}</dd>
+          </div>
+        ) : null}
 
         <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-base">
           <dt className="font-semibold text-slate-900">Total payable</dt>

@@ -4,6 +4,8 @@ const validate = require('../middleware/validate');
 const { protect, restrictTo } = require('../middleware/auth');
 const controller = require('../controllers/adminController');
 
+const router = express.Router();
+
 // Public shop settings reader (accessible by customer, seller, and admin)
 router.get('/settings', controller.getSettings);
 

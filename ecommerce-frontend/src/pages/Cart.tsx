@@ -174,7 +174,7 @@ export default function Cart() {
         <div className="flex flex-col gap-4">
           <CouponBox />
 
-          <OrderSummaryCard summary={summary} couponCode={coupon?.code}>
+          <OrderSummaryCard summary={summary} couponCode={coupon?.code} orderSource="customer">
             <button type="button" className="btn-primary w-full" onClick={handleCheckout}>
               Proceed to checkout
             </button>

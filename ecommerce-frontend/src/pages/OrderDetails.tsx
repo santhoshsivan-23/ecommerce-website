@@ -14,6 +14,7 @@ import {
   paymentStatusClasses,
 } from '@/utils/orders'
 import { notify, notifyApiError } from '@/utils/notify'
+import { selectTaxSettings, computeTax } from '@/features/admin/taxSettingsSlice'
 
 export default function OrderDetails() {
   const { orderNumber } = useParams<{ orderNumber: string }>()
@@ -21,6 +22,7 @@ export default function OrderDetails() {
   const dispatch = useAppDispatch()
 
   const { current: order, detailStatus, error } = useAppSelector((state) => state.orders)
+  const taxSettings = useAppSelector(selectTaxSettings)
 
   const [cancelling, setCancelling] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
@@ -206,6 +208,15 @@ export default function OrderDetails() {
                   </dd>
                 </div>
               ) : null}
+              {(() => {
+                const tax = computeTax(order.total, order.orderSource, taxSettings)
+                return tax > 0 ? (
+                  <div className="flex justify-between">
+                    <dt className="text-slate-500">Tax ({taxSettings.rate}%)</dt>
+                    <dd className="font-medium text-slate-700">{formatPrice(tax)}</dd>
+                  </div>
+                ) : null
+              })()}
               <div className="flex justify-between">
                 <dt className="text-slate-500">Delivery charge</dt>
                 <dd className="font-medium text-slate-800">

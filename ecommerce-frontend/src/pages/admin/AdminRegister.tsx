@@ -64,12 +64,12 @@ export default function AdminRegister() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-12">
       <div className="text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/30">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-lg shadow-orange-500/30">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0V7m0 4h4" />
           </svg>
         </div>
-        <span className="inline-block rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-700">
+        <span className="inline-block rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-700">
           Business Owner Registration
         </span>
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
@@ -155,7 +155,7 @@ export default function AdminRegister() {
 
         <button
           type="submit"
-          className="btn-primary w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-md hover:shadow-indigo-500/25 transition-all mt-2"
+          className="btn-primary w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg shadow-md hover:shadow-orange-500/25 transition-all mt-2"
           disabled={isSubmitting}
         >
           {isSubmitting ? <Spinner className="h-5 w-5 text-white" label="Registering Admin Account…" /> : 'Register Business Owner Account'}
@@ -163,7 +163,7 @@ export default function AdminRegister() {
 
         <div className="border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
           Already have an Admin account?{' '}
-          <Link to="/admin/login" className="font-semibold text-indigo-600 hover:underline">
+          <Link to="/admin/login" className="font-semibold text-orange-600 hover:underline">
             Log in to Admin Console
           </Link>
         </div>

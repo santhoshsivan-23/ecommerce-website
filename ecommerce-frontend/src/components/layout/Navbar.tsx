@@ -5,13 +5,13 @@ import {
   FiShoppingCart,
   FiHeart,
   FiUser,
-  FiMenu,
   FiX,
   FiLogOut,
   FiPackage,
   FiMapPin,
   FiGrid,
   FiChevronDown,
+  FiList,
 } from 'react-icons/fi'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/authSlice'
@@ -80,18 +80,58 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        {/* Mobile menu toggle */}
-        <button
-          type="button"
-          className="rounded-xl p-2.5 text-zinc-700 hover:bg-slate-100 lg:hidden transition-colors"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Toggle menu"
-          aria-expanded={menuOpen}
-        >
-          {menuOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
-        </button>
 
+      {/* ── Mobile Header Row (< lg) ── */}
+      <div className="flex items-center lg:hidden px-3 py-2.5 gap-0">
+        {/* Shop Name – 20% */}
+        <div className="flex items-center gap-1.5 shrink-0" style={{ flexBasis: '20%', minWidth: 0 }}>
+          <Link to="/" className="flex items-center gap-1 group">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-orange-600 font-extrabold text-white text-sm shadow-sm group-hover:bg-orange-700 transition-colors shrink-0">
+              S
+            </span>
+            {showGlobalSearch ? (
+              <ShopNameLogo className="text-[15px] leading-tight truncate" />
+            ) : (
+              <ShopNameLogo className="text-[15px] leading-tight truncate" />
+            )}
+          </Link>
+        </div>
+
+        {/* Search Bar – 70% (customers only) */}
+        <div style={{ flexBasis: '70%', minWidth: 0 }} className="px-2">
+          {showGlobalSearch ? (
+            <form onSubmit={handleSearch} className="relative w-full">
+              <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search products..."
+                className="input-field pl-8 pr-2 text-xs py-1.5 bg-slate-50 border-slate-200 focus:bg-white w-full"
+                aria-label="Search products"
+              />
+            </form>
+          ) : (
+            <div />
+          )}
+        </div>
+
+        {/* Category / Menu Toggle – 10% */}
+        <div style={{ flexBasis: '10%' }} className="flex justify-end shrink-0">
+          <button
+            type="button"
+            className="rounded-xl p-2 text-zinc-700 hover:bg-slate-100 transition-colors"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Toggle categories menu"
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <FiX className="h-5 w-5" /> : <FiList className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Desktop Header Row (≥ lg) ── */}
+      <div className="mx-auto hidden lg:flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         {/* Brand Logo with Two-Part Configurable Shop Name */}
         <Link to="/" className="flex items-center gap-2 group shrink-0">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-orange-600 font-extrabold text-white text-lg shadow-sm group-hover:bg-orange-700 transition-colors">
@@ -118,7 +158,7 @@ export function Navbar() {
         )}
 
         {/* Navigation & Action Controls (Desktop view) */}
-        <nav className="hidden lg:flex items-center gap-2">
+        <nav className="flex items-center gap-2">
           {isCustomer ? (
             <>
               <NavLink
@@ -275,7 +315,7 @@ export function Navbar() {
         </nav>
       </div>
 
-      {/* Sub-Navigation for Categories (Customers only) */}
+      {/* Sub-Navigation for Categories (Customers only, Desktop) */}
       {showGlobalSearch ? (
         <div className="hidden border-t border-slate-100 bg-white lg:block">
           <div className="mx-auto flex max-w-7xl items-center gap-1 px-6">
@@ -304,7 +344,7 @@ export function Navbar() {
         </div>
       ) : null}
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Drawer Menu – Categories */}
       {menuOpen ? (
         <div className="border-t border-slate-200 bg-white p-4 lg:hidden">
           <div className="mb-3 flex items-center justify-between pb-2 border-b border-slate-100">

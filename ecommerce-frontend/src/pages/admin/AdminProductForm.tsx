@@ -7,21 +7,10 @@ import { fetchSellers } from '@/features/admin/adminSlice'
 import { PageLoader, Spinner } from '@/components/ui/Spinner'
 import { PlusIcon, TrashIcon } from '@/components/ui/Icons'
 import { notify, notifyApiError, toFieldErrors } from '@/utils/notify'
+import { VariantModal } from '@/components/product/VariantModal'
+import type { VariantRow } from '@/components/product/VariantModal'
 
-interface VariantRow {
-  size: string
-  color: string
-  sku: string
-  price: string
-  stock: string
-}
 
-interface SpecRow {
-  key: string
-  value: string
-}
-
-const emptyVariant: VariantRow = { size: '', color: '', sku: '', price: '', stock: '0' }
 
 interface ProductFormProps {
   /** Where "back" and a successful save return to. The seller panel reuses this form. */
@@ -45,6 +34,10 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Variant modal state
+  const [variantModalOpen, setVariantModalOpen] = useState(false)
+  const [editingVariantIndex, setEditingVariantIndex] = useState(-1)
+
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -59,7 +52,7 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
   })
   const [images, setImages] = useState<string[]>([''])
   const [variants, setVariants] = useState<VariantRow[]>([])
-  const [specs, setSpecs] = useState<SpecRow[]>([])
+  const [specs, setSpecs] = useState<{ key: string; value: string }[]>([])
 
   useEffect(() => {
     if (categories.length === 0) dispatch(fetchCategories({ includeInactive: true }))
@@ -171,7 +164,22 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
 
   if (loading) return <PageLoader label="Loading product…" />
 
+  const handleVariantSave = (variant: VariantRow, index: number) => {
+    const next = [...variants]
+    // If all fields blank (from Remove click), filter out
+    if (!variant.size && !variant.color && !variant.sku) {
+      setVariants(next.filter((_, i) => i !== index))
+    } else if (index === -1) {
+      next.push(variant)
+      setVariants(next)
+    } else {
+      next[index] = variant
+      setVariants(next)
+    }
+  }
+
   return (
+    <>
     <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">
@@ -393,104 +401,67 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
         {errors.images ? <p className="field-error">{errors.images}</p> : null}
       </section>
 
+      {/* ── Variant Manager ── */}
       <section className="card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-800">Variants</h3>
+          <div>
+            <h3 className="font-semibold text-slate-800">Variants</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {variants.length === 0
+                ? 'No variants — customers buy the product directly.'
+                : `${variants.length} variant${variants.length > 1 ? 's' : ''} configured`}
+            </p>
+          </div>
           <button
             type="button"
-            className="btn-outline gap-1 text-xs"
-            onClick={() => setVariants([...variants, { ...emptyVariant }])}
+            className="btn-outline gap-1.5 text-xs"
+            onClick={() => { setEditingVariantIndex(-1); setVariantModalOpen(true) }}
           >
             <PlusIcon className="h-3.5 w-3.5" />
-            Add variant
+            Add Variation
           </button>
         </div>
 
-        {variants.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No variants. Customers buy the product directly using the stock above.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="pb-2">Size</th>
-                  <th className="pb-2">Colour</th>
-                  <th className="pb-2">SKU</th>
-                  <th className="pb-2">Price override</th>
-                  <th className="pb-2">Stock</th>
-                  <th className="pb-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {variants.map((variant, index) => {
-                  const update = (patch: Partial<VariantRow>) => {
-                    const next = [...variants]
-                    next[index] = { ...next[index], ...patch }
-                    setVariants(next)
-                  }
+        {variants.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v, idx) => {
+              const label = [
+                v.color && `Color: ${v.color}`,
+                v.size && `Size: ${v.size}`,
+                v.sku && `SKU: ${v.sku}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')
 
-                  return (
-                    <tr key={index}>
-                      <td className="py-1 pr-2">
-                        <input
-                          className="input-field"
-                          value={variant.size}
-                          placeholder="M"
-                          onChange={(event) => update({ size: event.target.value })}
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <input
-                          className="input-field"
-                          value={variant.color}
-                          placeholder="Black"
-                          onChange={(event) => update({ color: event.target.value })}
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <input
-                          className="input-field"
-                          value={variant.sku}
-                          placeholder="SKU-1"
-                          onChange={(event) => update({ sku: event.target.value })}
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <input
-                          type="number"
-                          min="0"
-                          className="input-field"
-                          value={variant.price}
-                          placeholder="Same as product"
-                          onChange={(event) => update({ price: event.target.value })}
-                        />
-                      </td>
-                      <td className="py-1 pr-2">
-                        <input
-                          type="number"
-                          min="0"
-                          className="input-field"
-                          value={variant.stock}
-                          onChange={(event) => update({ stock: event.target.value })}
-                        />
-                      </td>
-                      <td className="py-1">
-                        <button
-                          type="button"
-                          className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          onClick={() => setVariants(variants.filter((_, i) => i !== index))}
-                          aria-label="Remove variant"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => { setEditingVariantIndex(idx); setVariantModalOpen(true) }}
+                  className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:border-orange-300 hover:bg-orange-50/60 transition-all"
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-slate-800">{label || `Variant ${idx + 1}`}</span>
+                    <span className="text-slate-400">
+                      Stock: {v.stock}{v.price ? ` · ₹${v.price}` : ''}
+                    </span>
+                  </span>
+                  <span className="ml-auto text-slate-300 group-hover:text-orange-400 text-xs">Edit ›</span>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div
+            className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-8 text-slate-400 hover:border-orange-300 hover:text-orange-500 transition-all"
+            onClick={() => { setEditingVariantIndex(-1); setVariantModalOpen(true) }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setEditingVariantIndex(-1); setVariantModalOpen(true) } }}
+          >
+            <PlusIcon className="h-8 w-8" />
+            <p className="text-sm font-medium">Click to add the first variant</p>
+            <p className="text-xs">Size, Color, SKU, Price override &amp; Stock</p>
           </div>
         )}
       </section>
@@ -557,5 +528,17 @@ export default function AdminProductForm({ listPath = '/admin/products' }: Produ
         </button>
       </div>
     </form>
+
+    {/* Variant slide-over modal – rendered outside the <form> */}
+    {variantModalOpen ? (
+      <VariantModal
+        variant={editingVariantIndex >= 0 ? variants[editingVariantIndex] : null}
+        variantIndex={editingVariantIndex}
+        onSave={handleVariantSave}
+        onClose={() => setVariantModalOpen(false)}
+      />
+    ) : null}
+    </>
   )
 }
+

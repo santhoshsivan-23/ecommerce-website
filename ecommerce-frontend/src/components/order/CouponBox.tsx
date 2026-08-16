@@ -31,6 +31,8 @@ export function CouponBox({ onChange }: CouponBoxProps) {
       .catch(() => {})
   }, [])
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
   const handleApply = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!code.trim()) {
@@ -42,19 +44,24 @@ export function CouponBox({ onChange }: CouponBoxProps) {
 
   const applySpecificCode = async (targetCode: string) => {
     setApplying(true)
+    setErrorMessage(null)
     const result = await dispatch(applyCoupon(targetCode.trim().toUpperCase()))
     setApplying(false)
 
     if (applyCoupon.fulfilled.match(result)) {
       notify.success(`Coupon ${result.payload.coupon?.code} applied`)
       setCode('')
+      setErrorMessage(null)
       onChange?.(result.payload.coupon?.code ?? null)
     } else {
+      const msg = result.payload?.message || 'That coupon could not be applied'
+      setErrorMessage(msg)
       notifyApiError(result.payload, 'That coupon could not be applied')
     }
   }
 
   const handleRemove = async () => {
+    setErrorMessage(null)
     dispatch(clearCoupon())
     await dispatch(fetchCart())
     notify.info('Coupon removed')
@@ -92,12 +99,20 @@ export function CouponBox({ onChange }: CouponBoxProps) {
             className="input-field uppercase font-mono"
             placeholder="Enter promo code"
             value={code}
-            onChange={(event) => setCode(event.target.value)}
+            onChange={(event) => {
+              setCode(event.target.value)
+              if (errorMessage) setErrorMessage(null)
+            }}
           />
           <button type="submit" className="btn-outline shrink-0 font-semibold" disabled={applying}>
             {applying ? <Spinner className="h-4 w-4" /> : 'Apply'}
           </button>
         </div>
+        {errorMessage ? (
+          <p className="mt-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700">
+            {errorMessage}
+          </p>
+        ) : null}
       </form>
 
       {/* Available Coupons List (Public Coupons with Toggle ON) */}

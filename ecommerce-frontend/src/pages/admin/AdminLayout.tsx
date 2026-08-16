@@ -21,6 +21,7 @@ import {
   FiKey,
   FiLogOut,
   FiChevronDown,
+  FiDollarSign,
 } from 'react-icons/fi'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { logout } from '@/features/auth/authSlice'
@@ -67,6 +68,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/payment-methods', label: 'Payment Methods', icon: FiCreditCard, end: false },
       { to: '/admin/coupons', label: 'Coupons', icon: FiPercent, end: false },
+      { to: '/admin/tax-settings', label: 'Tax Settings', icon: FiDollarSign, end: false },
     ],
   },
 ]

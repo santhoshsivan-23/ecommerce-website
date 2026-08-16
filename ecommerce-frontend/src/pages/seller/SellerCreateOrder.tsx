@@ -304,6 +304,7 @@ export default function SellerCreateOrder() {
           quantity: line.quantity,
         })),
         paymentMethodId,
+        couponCode: couponCode.trim() || null,
         note: note.trim() || undefined,
       })
     )
@@ -808,7 +809,19 @@ export default function SellerCreateOrder() {
                           {formatPrice(draftQuote?.summary.subtotal ?? lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0))}
                         </span>
                       </div>
-                      <div className="flex justify-between text-base font-extrabold text-zinc-900 border-t border-slate-100 pt-2">
+                      {(draftQuote?.summary.productDiscount ?? 0) > 0 ? (
+                        <div className="flex justify-between text-emerald-600">
+                          <span>Product Discount</span>
+                          <span className="font-semibold">− {formatPrice(draftQuote!.summary.productDiscount)}</span>
+                        </div>
+                      ) : null}
+                      {(draftQuote?.summary.couponDiscount ?? 0) > 0 ? (
+                        <div className="flex justify-between text-emerald-600">
+                          <span>Coupon{couponCode ? ` (${couponCode})` : ''}</span>
+                          <span className="font-semibold">− {formatPrice(draftQuote!.summary.couponDiscount)}</span>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-extrabold text-zinc-900">
                         <span>Total Payable</span>
                         <span className="text-orange-600">
                           {formatPrice(draftQuote?.summary.total ?? lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0))}
@@ -896,8 +909,16 @@ export default function SellerCreateOrder() {
                 </div>
                 {draftQuote && draftQuote.summary.productDiscount > 0 ? (
                   <div className="flex justify-between text-emerald-600">
-                    <span>Discount</span>
+                    <span>Product Discount</span>
                     <span className="font-semibold">− {formatPrice(draftQuote.summary.productDiscount)}</span>
+                  </div>
+                ) : null}
+                {draftQuote && draftQuote.summary.couponDiscount > 0 ? (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>
+                      Coupon{draftQuote.coupon?.code ? ` (${draftQuote.coupon.code})` : couponCode ? ` (${couponCode})` : ''}
+                    </span>
+                    <span className="font-semibold">− {formatPrice(draftQuote.summary.couponDiscount)}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between text-slate-600">
@@ -906,6 +927,11 @@ export default function SellerCreateOrder() {
                     {draftQuote?.summary.deliveryCharge === 0 ? 'Free' : formatPrice(draftQuote?.summary.deliveryCharge ?? 0)}
                   </span>
                 </div>
+                {draftQuote && draftQuote.summary.discount > 0 ? (
+                  <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                    You save {formatPrice(draftQuote.summary.discount)} on this order.
+                  </p>
+                ) : null}
                 <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-lg font-extrabold text-zinc-900">
                   <span>Total Amount</span>
                   <span className="text-orange-600">{formatPrice(draftQuote?.summary.total ?? 0)}</span>
@@ -970,9 +996,23 @@ export default function SellerCreateOrder() {
                   ) : null}
                 </div>
 
-                {couponCode ? (
+                {/* couponError from server (quantity condition rejection etc.) */}
+                {draftQuote?.couponError ? (
+                  <p className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700">
+                    {draftQuote.couponError}
+                  </p>
+                ) : null}
+
+                {couponCode && draftQuote?.coupon ? (
                   <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-800 font-medium mb-3">
-                    Coupon <strong>{couponCode}</strong> applied to this order!
+                    Coupon <strong>{draftQuote.coupon.code}</strong> applied
+                    {draftQuote.summary.couponDiscount > 0
+                      ? ` — saving ${formatPrice(draftQuote.summary.couponDiscount)}`
+                      : '!'}
+                  </div>
+                ) : couponCode ? (
+                  <div className="rounded-xl bg-orange-50 border border-orange-200 p-2.5 text-xs text-orange-800 font-medium mb-3">
+                    Coupon <strong>{couponCode}</strong> is being applied…
                   </div>
                 ) : null}
 
